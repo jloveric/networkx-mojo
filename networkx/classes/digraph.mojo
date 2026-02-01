@@ -52,8 +52,8 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
     fn __contains__(self, node: Self.N) -> Bool:
         return self.has_node(node)
 
-    fn __iter__(ref self) -> List[Self.N]:
-        return self.nodes()
+    fn __iter__(self) -> Dict[Self.N, Dict[Self.N, Float64]].IteratorType[iterable_mut=False, iterable_origin=origin_of(self._succ)]:
+        return self._succ.keys()
 
     fn number_of_nodes(self) -> Int:
         return len(self._succ)

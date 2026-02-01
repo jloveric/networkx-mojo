@@ -49,6 +49,11 @@ fn main() raises:
         n2 += 1
     assert_equal(n2, 2)
 
+    var n3 = 0
+    for _ in g:
+        n3 += 1
+    assert_equal(n3, 2)
+
     var deg1 = 0
     for _ in g.neighbors(1):
         deg1 += 1

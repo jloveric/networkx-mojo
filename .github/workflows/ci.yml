@@ -33,6 +33,8 @@ jobs:
         run: |
           .venv/bin/mojo run -I . tests/test_graph.mojo
           .venv/bin/mojo run -I . tests/test_digraph.mojo
+          .venv/bin/mojo run -I . tests/test_multigraph.mojo
+          .venv/bin/mojo run -I . tests/test_multidigraph.mojo
           .venv/bin/mojo run -I . tests/test_algorithms.mojo
           .venv/bin/mojo run -I . tests/test_attrs.mojo
           .venv/bin/mojo run -I . tests/test_more_algorithms.mojo

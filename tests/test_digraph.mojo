@@ -31,6 +31,11 @@ fn main() raises:
         n2 += 1
     assert_equal(n2, 2)
 
+    var n3 = 0
+    for _ in g:
+        n3 += 1
+    assert_equal(n3, 2)
+
     assert_equal(g.for_each_node[_noop_node](), 2)
     assert_equal(g.for_each_successor[_noop_node](1), 1)
     assert_equal(g.for_each_predecessor[_noop_node](2), 1)
