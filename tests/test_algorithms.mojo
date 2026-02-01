@@ -36,6 +36,21 @@ fn main() raises:
     assert_equal(p3[1], 3)
     assert_equal(p3[2], 2)
 
+    var gw = Graph[Int]()
+    gw.add_edge(1, 2, 5.0)
+    gw.add_edge(1, 3, 1.0)
+    gw.add_edge(3, 2, 1.0)
+    var dpw = gw.dijkstra_path(1, 2)
+    assert_equal(len(dpw), 3)
+    assert_equal(dpw[0], 1)
+    assert_equal(dpw[1], 3)
+    assert_equal(dpw[2], 2)
+    var apw = gw.astar_path(1, 2)
+    assert_equal(len(apw), 3)
+    assert_equal(apw[0], 1)
+    assert_equal(apw[1], 3)
+    assert_equal(apw[2], 2)
+
     var dg = DiGraph[Int]()
     dg.add_edges_from([(1, 2), (1, 3), (3, 2)])
 
@@ -54,6 +69,21 @@ fn main() raises:
     assert_equal(a2[0], 1)
     assert_equal(a2[1], 3)
     assert_equal(a2[2], 2)
+
+    var dgw = DiGraph[Int]()
+    dgw.add_edge(1, 2, 5.0)
+    dgw.add_edge(1, 3, 1.0)
+    dgw.add_edge(3, 2, 1.0)
+    var ddpw = dgw.dijkstra_path(1, 2)
+    assert_equal(len(ddpw), 3)
+    assert_equal(ddpw[0], 1)
+    assert_equal(ddpw[1], 3)
+    assert_equal(ddpw[2], 2)
+    var dapw = dgw.astar_path(1, 2)
+    assert_equal(len(dapw), 3)
+    assert_equal(dapw[0], 1)
+    assert_equal(dapw[1], 3)
+    assert_equal(dapw[2], 2)
 
     var caught = False
     try:
