@@ -26,6 +26,11 @@ fn main() raises:
     assert_false(g.has_edge(2, 1))
     assert_equal(g.number_of_edges(), 1)
 
+    var n2 = 0
+    for _ in g.succ_view().keys():
+        n2 += 1
+    assert_equal(n2, 2)
+
     assert_equal(g.for_each_node[_noop_node](), 2)
     assert_equal(g.for_each_successor[_noop_node](1), 1)
     assert_equal(g.for_each_predecessor[_noop_node](2), 1)
@@ -34,6 +39,12 @@ fn main() raises:
     var s = g.successors(1)
     assert_equal(len(s), 1)
     assert_equal(s[0], 2)
+
+    var s2 = 0
+    ref succ_nbrs = g.succ_view()[1]
+    for _ in succ_nbrs.keys():
+        s2 += 1
+    assert_equal(s2, 1)
 
     var n = g.neighbors(1)
     assert_equal(len(n), 1)
@@ -46,6 +57,12 @@ fn main() raises:
     var p = g.predecessors(2)
     assert_equal(len(p), 1)
     assert_equal(p[0], 1)
+
+    var p2 = 0
+    ref pred_nbrs = g.pred_view()[2]
+    for _ in pred_nbrs.keys():
+        p2 += 1
+    assert_equal(p2, 1)
 
     g.add_edge(2, 3)
     assert_equal(g.number_of_nodes(), 3)

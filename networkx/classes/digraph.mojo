@@ -319,6 +319,12 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
             result.append(node)
         return result^
 
+    fn succ_view(ref self) -> ref[self._succ] Dict[Self.N, Dict[Self.N, Float64]]:
+        return self._succ
+
+    fn pred_view(ref self) -> ref[self._pred] Dict[Self.N, Dict[Self.N, Float64]]:
+        return self._pred
+
     fn for_each_node[callback: fn(Self.N)](ref self) -> Int:
         var count = 0
         for node in self._succ.keys():

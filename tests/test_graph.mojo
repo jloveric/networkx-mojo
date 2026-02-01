@@ -44,10 +44,21 @@ fn main() raises:
         n += 1
     assert_equal(n, 2)
 
+    var n2 = 0
+    for _ in g.adj_view().keys():
+        n2 += 1
+    assert_equal(n2, 2)
+
     var deg1 = 0
     for _ in g.neighbors(1):
         deg1 += 1
     assert_equal(deg1, 1)
+
+    var deg1b = 0
+    ref nbrs = g.adj_view()[1]
+    for _ in nbrs.keys():
+        deg1b += 1
+    assert_equal(deg1b, 1)
 
     g.remove_edge(1, 2)
     assert_false(g.has_edge(1, 2))

@@ -413,6 +413,9 @@ struct Graph[N: KeyElement & ImplicitlyCopyable]:
             result.append(node)
         return result^
 
+    fn adj_view(ref self) -> ref[self._adj] Dict[Self.N, Dict[Self.N, Float64]]:
+        return self._adj
+
     fn for_each_node[callback: fn(Self.N)](ref self) -> Int:
         var count = 0
         for node in self._adj.keys():
