@@ -1,10 +1,18 @@
 [project]
 name = "networkx-mojo"
 version = "0.1.0"
-description = "Add your description here"
+description = "An efficient Mojo implementation of a subset of NetworkX (Graph/DiGraph, algorithms, and attributes)."
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = []
+
+[project.license]
+file = "LICENSE"
+
+[project.urls]
+Homepage = "https://github.com/jloveric/networkx-mojo"
+Repository = "https://github.com/jloveric/networkx-mojo"
+Issues = "https://github.com/jloveric/networkx-mojo/issues"
 
 [project.optional-dependencies]
 bench = [

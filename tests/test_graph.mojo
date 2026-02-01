@@ -2,6 +2,15 @@ from networkx import Graph
 from testing import assert_equal, assert_true, assert_false
 
 
+fn _noop_node(x: Int):
+    _ = x
+
+
+fn _noop_edge(u: Int, v: Int):
+    _ = u
+    _ = v
+
+
 fn main() raises:
     var g = Graph[Int]()
     assert_equal(g.number_of_nodes(), 0)
@@ -19,6 +28,10 @@ fn main() raises:
     assert_true(g.has_edge(2, 1))
     assert_equal(g.number_of_nodes(), 2)
     assert_equal(g.number_of_edges(), 1)
+
+    assert_equal(g.for_each_node[_noop_node](), 2)
+    assert_equal(g.for_each_neighbor[_noop_node](1), 1)
+    assert_equal(g.for_each_edge[_noop_edge](), 1)
 
     assert_false(g.has_edge(1, 3))
 
@@ -59,6 +72,8 @@ fn main() raises:
     g2.add_edge(1, 1)
     assert_equal(g2.number_of_edges(), 3)
     assert_equal(g2.degree(1), 3)
+
+    assert_equal(g2.for_each_edge[_noop_edge](), g2.number_of_edges())
 
     g2.clear()
     assert_equal(g2.number_of_nodes(), 0)

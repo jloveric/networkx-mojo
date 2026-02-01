@@ -2,78 +2,13 @@ from builtin.value import ImplicitlyCopyable
 from collections import Dict, List, Set
 from collections.dict import KeyElement
 from utils import Variant
-
-struct _HeapItem[N: KeyElement & ImplicitlyCopyable](ImplicitlyCopyable):
-    var prio: Float64
-    var count: Int
-    var node: Self.N
-
-    fn __init__(out self, prio: Float64, count: Int, node: Self.N):
-        self.prio = prio
-        self.count = count
-        self.node = node
-
-struct _MinHeap[N: KeyElement & ImplicitlyCopyable]:
-    var _data: List[_HeapItem[Self.N]]
-
-    fn __init__(out self):
-        self._data = List[_HeapItem[Self.N]]()
-
-    fn is_empty(self) -> Bool:
-        return len(self._data) == 0
-
-    fn _less(self, a: _HeapItem[Self.N], b: _HeapItem[Self.N]) -> Bool:
-        if a.prio < b.prio:
-            return True
-        if a.prio > b.prio:
-            return False
-        return a.count < b.count
-
-    fn push(mut self, item: _HeapItem[Self.N]):
-        self._data.append(item)
-        var i = len(self._data) - 1
-        while i > 0:
-            var parent = (i - 1) // 2
-            if not self._less(self._data[i], self._data[parent]):
-                break
-            var tmp = self._data[parent]
-            self._data[parent] = self._data[i]
-            self._data[i] = tmp
-            i = parent
-
-    fn pop_min(mut self) raises -> _HeapItem[Self.N]:
-        if len(self._data) == 0:
-            raise Error("empty heap")
-        var result = self._data[0]
-        var last = self._data.pop()
-        if len(self._data) == 0:
-            return result
-        self._data[0] = last
-        var i = 0
-        while True:
-            var left = 2 * i + 1
-            var right = 2 * i + 2
-            if left >= len(self._data):
-                break
-            var smallest = left
-            if right < len(self._data) and self._less(self._data[right], self._data[left]):
-                smallest = right
-            if not self._less(self._data[smallest], self._data[i]):
-                break
-            var tmp = self._data[i]
-            self._data[i] = self._data[smallest]
-            self._data[smallest] = tmp
-            i = smallest
-        return result
-
+from .._internal.heap import _HeapItem, _MinHeap
 
 fn _unit_weight[N: KeyElement & ImplicitlyCopyable](u: N, v: N) -> Float64:
     return 1.0
 
-
 fn _zero_heuristic[N: KeyElement & ImplicitlyCopyable](u: N, v: N) -> Float64:
     return 0.0
-
 
 fn _reverse_in_place[N: KeyElement & ImplicitlyCopyable](mut path: List[N]):
     var i = 0
@@ -84,6 +19,74 @@ fn _reverse_in_place[N: KeyElement & ImplicitlyCopyable](mut path: List[N]):
         path[j] = tmp
         i += 1
         j -= 1
+
+
+struct _WEdge[N: KeyElement & ImplicitlyCopyable](ImplicitlyCopyable):
+    var u: Self.N
+    var v: Self.N
+    var w: Float64
+
+    fn __init__(out self, u: Self.N, v: Self.N, w: Float64):
+        self.u = u
+        self.v = v
+        self.w = w
+
+
+fn _sort_wedges_in_place[N: KeyElement & ImplicitlyCopyable](mut edges: List[_WEdge[N]]):
+    var i = 1
+    while i < len(edges):
+        var j = i
+        while j > 0 and edges[j].w < edges[j - 1].w:
+            var tmp = edges[j - 1]
+            edges[j - 1] = edges[j]
+            edges[j] = tmp
+            j -= 1
+        i += 1
+
+
+struct _UnionFind[N: KeyElement & ImplicitlyCopyable]:
+    var parent: Dict[Self.N, Self.N]
+    var rank: Dict[Self.N, Int]
+
+    fn __init__(out self):
+        self.parent = Dict[Self.N, Self.N]()
+        self.rank = Dict[Self.N, Int]()
+
+    fn add(mut self, x: Self.N):
+        if x in self.parent:
+            return
+        self.parent[x] = x
+        self.rank[x] = 0
+
+    fn find(mut self, x: Self.N) raises -> Self.N:
+        var cur = x
+        while self.parent[cur] != cur:
+            cur = self.parent[cur]
+        var root = cur
+
+        cur = x
+        while self.parent[cur] != cur:
+            var p = self.parent[cur]
+            self.parent[cur] = root
+            cur = p
+        return root
+
+    fn union(mut self, a: Self.N, b: Self.N) raises -> Bool:
+        var ra = self.find(a)
+        var rb = self.find(b)
+        if ra == rb:
+            return False
+
+        var rka = self.rank[ra]
+        var rkb = self.rank[rb]
+        if rka < rkb:
+            self.parent[ra] = rb
+        elif rka > rkb:
+            self.parent[rb] = ra
+        else:
+            self.parent[rb] = ra
+            self.rank[ra] = rka + 1
+        return True
 
 comptime AttrValue = Variant[Int, Float64, Bool, String]
 
@@ -138,6 +141,61 @@ struct Graph[N: KeyElement & ImplicitlyCopyable]:
 
     fn is_directed(self) -> Bool:
         return False
+
+    fn connected_components(ref self) raises -> List[List[Self.N]]:
+        var seen = Set[Self.N]()
+        var comps = List[List[Self.N]]()
+
+        for node in self._adj.keys():
+            if node in seen:
+                continue
+
+            var comp = List[Self.N]()
+            var stack = List[Self.N]()
+            stack.append(node)
+            seen.add(node)
+
+            while len(stack) > 0:
+                var u = stack.pop()
+                comp.append(u)
+                for v in self._adj[u].keys():
+                    if v in seen:
+                        continue
+                    seen.add(v)
+                    stack.append(v)
+
+            comps.append(comp^)
+
+        return comps^
+
+    fn minimum_spanning_tree(ref self, out mst: Graph[Self.N]) raises:
+        mst = Graph[Self.N]()
+        for node in self._adj.keys():
+            mst.add_node(node)
+
+        var uf = _UnionFind[Self.N]()
+        for node in self._adj.keys():
+            uf.add(node)
+
+        var edges = List[_WEdge[Self.N]]()
+        var processed = Set[Self.N]()
+        for entry in self._adj.items():
+            for e in entry.value.items():
+                var v = e.key
+                if entry.key == v:
+                    continue
+                if v in processed:
+                    continue
+                edges.append(_WEdge[Self.N](entry.key, v, e.value))
+            processed.add(entry.key)
+
+        _sort_wedges_in_place(edges)
+
+        for e in edges:
+            if uf.union(e.u, e.v):
+                mst.add_edge(e.u, e.v, e.w)
+
+        return
 
     fn shortest_path(ref self, source: Self.N, target: Self.N) raises -> List[Self.N]:
         if not self.has_node(source) or not self.has_node(target):
@@ -198,7 +256,7 @@ struct Graph[N: KeyElement & ImplicitlyCopyable]:
                 if v in finalized:
                     continue
                 var nd = du + e.value
-                var better = False
+                var better: Bool
                 try:
                     better = nd < dist[v]
                 except:
@@ -243,7 +301,7 @@ struct Graph[N: KeyElement & ImplicitlyCopyable]:
                 if v in finalized:
                     continue
                 var nd = du + weight_fn(u, v)
-                var better = False
+                var better: Bool
                 try:
                     better = nd < dist[v]
                 except:
@@ -289,7 +347,7 @@ struct Graph[N: KeyElement & ImplicitlyCopyable]:
                 if v in closed:
                     continue
                 var tentative = gu + e.value
-                var better = False
+                var better: Bool
                 try:
                     better = tentative < gscore[v]
                 except:
@@ -332,7 +390,7 @@ struct Graph[N: KeyElement & ImplicitlyCopyable]:
                 if v in closed:
                     continue
                 var tentative = gu + weight_fn(u, v)
-                var better = False
+                var better: Bool
                 try:
                     better = tentative < gscore[v]
                 except:
@@ -355,6 +413,13 @@ struct Graph[N: KeyElement & ImplicitlyCopyable]:
             result.append(node)
         return result^
 
+    fn for_each_node[callback: fn(Self.N)](ref self) -> Int:
+        var count = 0
+        for node in self._adj.keys():
+            callback(node)
+            count += 1
+        return count
+
     fn adj(ref self, node: Self.N) raises -> List[Self.N]:
         return self.neighbors(node)
 
@@ -363,6 +428,13 @@ struct Graph[N: KeyElement & ImplicitlyCopyable]:
         for nbr in self._adj[node].keys():
             result.append(nbr)
         return result^
+
+    fn for_each_neighbor[callback: fn(Self.N)](ref self, node: Self.N) raises -> Int:
+        var count = 0
+        for nbr in self._adj[node].keys():
+            callback(nbr)
+            count += 1
+        return count
 
     fn add_node(mut self, node: Self.N):
         _ = self._adj.setdefault(node, Dict[Self.N, Float64]())
@@ -468,6 +540,19 @@ struct Graph[N: KeyElement & ImplicitlyCopyable]:
                 result.append((entry.key, nbr))
             processed.add(entry.key)
         return result^
+
+    fn for_each_edge[callback: fn(Self.N, Self.N)](ref self) -> Int:
+        var count = 0
+        var processed = Set[Self.N]()
+
+        for entry in self._adj.items():
+            for nbr in entry.value.keys():
+                if nbr in processed:
+                    continue
+                callback(entry.key, nbr)
+                count += 1
+            processed.add(entry.key)
+        return count
 
     fn remove_edge(mut self, u: Self.N, v: Self.N) raises:
         if not self.has_edge(u, v):

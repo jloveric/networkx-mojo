@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  mojo-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Create venv and install Mojo (nightly)
+        run: |
+          uv venv
+          . .venv/bin/activate
+          uv pip install mojo --index https://whl.modular.com/nightly/simple/ --prerelease allow
+
+      - name: Run Mojo tests
+        run: |
+          .venv/bin/mojo run -I . tests/test_graph.mojo
+          .venv/bin/mojo run -I . tests/test_digraph.mojo
+          .venv/bin/mojo run -I . tests/test_algorithms.mojo
+          .venv/bin/mojo run -I . tests/test_attrs.mojo
+          .venv/bin/mojo run -I . tests/test_more_algorithms.mojo

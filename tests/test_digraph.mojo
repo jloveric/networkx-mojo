@@ -2,6 +2,15 @@ from networkx import DiGraph
 from testing import assert_equal, assert_true, assert_false
 
 
+fn _noop_node(x: Int):
+    _ = x
+
+
+fn _noop_edge(u: Int, v: Int):
+    _ = u
+    _ = v
+
+
 fn main() raises:
     var g = DiGraph[Int]()
     assert_equal(g.number_of_nodes(), 0)
@@ -16,6 +25,11 @@ fn main() raises:
     assert_true(g.has_edge(1, 2))
     assert_false(g.has_edge(2, 1))
     assert_equal(g.number_of_edges(), 1)
+
+    assert_equal(g.for_each_node[_noop_node](), 2)
+    assert_equal(g.for_each_successor[_noop_node](1), 1)
+    assert_equal(g.for_each_predecessor[_noop_node](2), 1)
+    assert_equal(g.for_each_edge[_noop_edge](), 1)
 
     var s = g.successors(1)
     assert_equal(len(s), 1)
