@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import argparse
 import json
 import subprocess
@@ -18,7 +20,7 @@ def _latest_mojo_mtime(repo_root: Path) -> float:
     return latest
 
 
-def _ensure_mojo_bench_built(repo_root: Path, *, force: bool) -> Path:
+def _ensure_mojo_bench_built(repo_root: Path, *, force: bool, auto_rebuild: bool) -> Path:
     mojo = repo_root / ".venv" / "bin" / "mojo"
     bench = repo_root / "benches" / "graph_bench.mojo"
 
@@ -27,24 +29,46 @@ def _ensure_mojo_bench_built(repo_root: Path, *, force: bool) -> Path:
     exe = out_dir / "graph_bench"
 
     needs_build = force or (not exe.exists())
-    if not needs_build:
+    if not needs_build and auto_rebuild:
         needs_build = exe.stat().st_mtime < _latest_mojo_mtime(repo_root)
 
     if needs_build:
+        build_start = time.perf_counter_ns()
+        print("[bench] building mojo benchmark...", file=sys.stderr)
         cmd = [str(mojo), "build", "-I", str(repo_root), "-o", str(exe), str(bench)]
         subprocess.run(cmd, cwd=repo_root, check=True)
+        build_end = time.perf_counter_ns()
+        print(f"[bench] build done in {(build_end - build_start) / 1e9:.3f}s", file=sys.stderr)
 
     return exe
 
 
-def _run_mojo_bench(repo_root: Path, n: int, m: int, reps: int, *, force_build: bool, skip_build: bool) -> dict:
+def _run_mojo_bench(
+    repo_root: Path,
+    n: int,
+    m: int,
+    reps: int,
+    *,
+    force_build: bool,
+    skip_build: bool,
+    auto_rebuild: bool,
+) -> dict:
     if skip_build:
         exe = repo_root / ".bench" / "graph_bench"
     else:
-        exe = _ensure_mojo_bench_built(repo_root, force=force_build)
+        exe = _ensure_mojo_bench_built(repo_root, force=force_build, auto_rebuild=auto_rebuild)
+
+    if not exe.exists():
+        raise RuntimeError(
+            "Mojo benchmark executable not found. Run without --skip-build to build it, "
+            "or run with --force-build."
+        )
 
     cmd = [str(exe), str(n), str(m), str(reps)]
+    run_start = time.perf_counter_ns()
     proc = subprocess.run(cmd, cwd=repo_root, capture_output=True, text=True, check=True)
+    run_end = time.perf_counter_ns()
+    print(f"[bench] mojo run done in {(run_end - run_start) / 1e9:.6f}s", file=sys.stderr)
 
     out: dict[str, str] = {}
     for line in proc.stdout.splitlines():
@@ -68,6 +92,8 @@ def _run_python_networkx_bench(n: int, m: int, reps: int) -> dict:
 
     import networkx as py_nx  # type: ignore
 
+    print("[bench] running python networkx benchmark...", file=sys.stderr)
+    py_start = time.perf_counter_ns()
     total_ns = 0
     for _ in range(reps):
         g = py_nx.Graph()
@@ -80,6 +106,9 @@ def _run_python_networkx_bench(n: int, m: int, reps: int) -> dict:
             g.add_edge(u, v)
         end = time.perf_counter_ns()
         total_ns += end - start
+
+    py_end = time.perf_counter_ns()
+    print(f"[bench] python run done in {(py_end - py_start) / 1e9:.6f}s", file=sys.stderr)
 
     return {
         "python_build_ns_total": total_ns,
@@ -94,37 +123,55 @@ def main() -> None:
     parser.add_argument("--reps", type=int, default=1)
     parser.add_argument("--force-build", action="store_true")
     parser.add_argument("--skip-build", action="store_true")
+    parser.add_argument("--auto-rebuild", action="store_true")
+    parser.add_argument("--compare-python", action="store_true")
+    parser.add_argument("--python-only", action="store_true")
     parser.add_argument("--plot", action="store_true")
     parser.add_argument("--plot-file", type=str, default="bench.png")
     args = parser.parse_args()
 
     repo_root = Path(__file__).resolve().parents[1]
 
-    mojo = _run_mojo_bench(
-        repo_root,
-        args.n,
-        args.m,
-        args.reps,
-        force_build=args.force_build,
-        skip_build=args.skip_build,
-    )
-    py = _run_python_networkx_bench(args.n, args.m, args.reps)
-
-    result = {
+    result: dict[str, object] = {
         "n": args.n,
         "m": args.m,
         "reps": args.reps,
-        **mojo,
-        **py,
     }
+
+    if not args.python_only:
+        mojo = _run_mojo_bench(
+            repo_root,
+            args.n,
+            args.m,
+            args.reps,
+            force_build=args.force_build,
+            skip_build=args.skip_build,
+            auto_rebuild=args.auto_rebuild,
+        )
+        result.update(mojo)
+
+    if args.compare_python or args.python_only:
+        py = _run_python_networkx_bench(args.n, args.m, args.reps)
+        result.update(py)
+
     if args.plot:
         import matplotlib.pyplot as plt  # type: ignore
 
-        mojo_avg = int(result["mojo_build_ns_avg"])
-        py_avg = int(result["python_build_ns_avg"])
+        labels = []
+        values = []
+
+        if "mojo_build_ns_avg" in result:
+            labels.append("mojo")
+            values.append(int(result["mojo_build_ns_avg"]))
+        if "python_build_ns_avg" in result:
+            labels.append("python networkx")
+            values.append(int(result["python_build_ns_avg"]))
+
+        if len(labels) == 0:
+            raise RuntimeError("No benchmark results available to plot")
 
         fig, ax = plt.subplots(figsize=(6, 4))
-        ax.bar(["mojo", "python networkx"], [mojo_avg, py_avg])
+        ax.bar(labels, values)
         ax.set_ylabel("avg build time (ns)")
         ax.set_title(f"n={args.n} m={args.m} reps={args.reps}")
         fig.tight_layout()
