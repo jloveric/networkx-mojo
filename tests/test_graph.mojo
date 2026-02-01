@@ -1,0 +1,65 @@
+from networkx import Graph
+from testing import assert_equal, assert_true, assert_false
+
+
+fn main() raises:
+    var g = Graph[Int]()
+    assert_equal(g.number_of_nodes(), 0)
+    assert_equal(g.number_of_edges(), 0)
+    assert_equal(g.order(), 0)
+    assert_equal(g.size(), 0)
+    assert_false(g.is_directed())
+
+    g.add_node(1)
+    assert_true(g.has_node(1))
+    assert_equal(g.number_of_nodes(), 1)
+
+    g.add_edge(1, 2)
+    assert_true(g.has_edge(1, 2))
+    assert_true(g.has_edge(2, 1))
+    assert_equal(g.number_of_nodes(), 2)
+    assert_equal(g.number_of_edges(), 1)
+
+    assert_false(g.has_edge(1, 3))
+
+    var edges = g.edges()
+    assert_equal(len(edges), 1)
+    assert_true((edges[0] == (1, 2)) or (edges[0] == (2, 1)))
+
+    var n = 0
+    for _ in g.nodes():
+        n += 1
+    assert_equal(n, 2)
+
+    var deg1 = 0
+    for _ in g.neighbors(1):
+        deg1 += 1
+    assert_equal(deg1, 1)
+
+    g.remove_edge(1, 2)
+    assert_false(g.has_edge(1, 2))
+    assert_equal(g.number_of_edges(), 0)
+
+    g.add_edge(1, 2)
+    g.add_edge(2, 3)
+    assert_equal(g.number_of_edges(), 2)
+    g.remove_node(2)
+    assert_false(g.has_node(2))
+    assert_false(g.has_edge(1, 2))
+    assert_false(g.has_edge(2, 3))
+    assert_equal(g.number_of_edges(), 0)
+
+    var g2 = Graph[Int]()
+    g2.add_nodes_from([1, 2, 3])
+    assert_equal(g2.number_of_nodes(), 3)
+    g2.add_edges_from([(1, 2), (2, 3)])
+    assert_equal(g2.number_of_edges(), 2)
+    assert_equal(g2.degree(2), 2)
+
+    g2.add_edge(1, 1)
+    assert_equal(g2.number_of_edges(), 3)
+    assert_equal(g2.degree(1), 3)
+
+    g2.clear()
+    assert_equal(g2.number_of_nodes(), 0)
+    assert_equal(g2.number_of_edges(), 0)
