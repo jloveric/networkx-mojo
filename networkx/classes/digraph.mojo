@@ -73,6 +73,59 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
     fn is_directed(self) -> Bool:
         return True
 
+    fn is_dag(ref self) -> Bool:
+        try:
+            _ = self.topological_sort()
+            return True
+        except:
+            return False
+
+    fn descendants(ref self, node: Self.N) raises -> List[Self.N]:
+        if not self.has_node(node):
+            raise Error("node not in graph")
+
+        var seen = Set[Self.N]()
+        var out = List[Self.N]()
+        var stack = List[Self.N]()
+
+        for v in self._succ[node].keys():
+            stack.append(v)
+
+        while len(stack) > 0:
+            var u = stack.pop()
+            if u in seen:
+                continue
+            seen.add(u)
+            out.append(u)
+            for v in self._succ[u].keys():
+                if not (v in seen):
+                    stack.append(v)
+
+        return out^
+
+    fn ancestors(ref self, node: Self.N) raises -> List[Self.N]:
+        if not self.has_node(node):
+            raise Error("node not in graph")
+
+        var seen = Set[Self.N]()
+        var out = List[Self.N]()
+        var stack = List[Self.N]()
+
+        for v in self._pred[node].keys():
+            stack.append(v)
+
+        while len(stack) > 0:
+            var u = stack.pop()
+            if u in seen:
+                continue
+            seen.add(u)
+            out.append(u)
+            for v in self._pred[u].keys():
+                if not (v in seen):
+                    stack.append(v)
+
+        return out^
+
     fn topological_sort(ref self) raises -> List[Self.N]:
         var indeg = Dict[Self.N, Int]()
         for node in self._succ.keys():
@@ -393,6 +446,74 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
     fn add_edges_from(mut self, edges: List[Tuple[Self.N, Self.N]]):
         for e in edges:
             self.add_edge(e[0], e[1])
+
+    fn copy(ref self, out g: DiGraph[Self.N]) raises:
+        g = DiGraph[Self.N]()
+
+        for node in self._succ.keys():
+            g.add_node(node)
+
+        for entry in self._succ.items():
+            for nbr_entry in entry.value.items():
+                g.add_edge(entry.key, nbr_entry.key, nbr_entry.value)
+
+        for entry in self._graph_attr.items():
+            g.set_graph_attr(entry.key, entry.value)
+
+        for entry in self._node_attr.items():
+            for kv in entry.value.items():
+                g.set_node_attr(entry.key, kv.key, kv.value)
+
+        for u_entry in self._edge_attr.items():
+            for v_entry in u_entry.value.items():
+                for kv in v_entry.value.items():
+                    if kv.key == "weight":
+                        continue
+                    var tmp = kv.value
+                    g.set_edge_attr(u_entry.key, v_entry.key, kv.key, tmp)
+
+        return
+
+    fn subgraph(ref self, nodes: List[Self.N], out sg: DiGraph[Self.N]) raises:
+        sg = DiGraph[Self.N]()
+        var node_set = Set[Self.N]()
+
+        for n in nodes:
+            if self.has_node(n):
+                sg.add_node(n)
+                node_set.add(n)
+
+        for entry in self._graph_attr.items():
+            sg.set_graph_attr(entry.key, entry.value)
+
+        for entry in self._node_attr.items():
+            if not (entry.key in node_set):
+                continue
+            for kv in entry.value.items():
+                sg.set_node_attr(entry.key, kv.key, kv.value)
+
+        for entry in self._succ.items():
+            if not (entry.key in node_set):
+                continue
+            for nbr_entry in entry.value.items():
+                var v = nbr_entry.key
+                if not (v in node_set):
+                    continue
+                sg.add_edge(entry.key, v, nbr_entry.value)
+
+        for u_entry in self._edge_attr.items():
+            if not (u_entry.key in node_set):
+                continue
+            for v_entry in u_entry.value.items():
+                if not (v_entry.key in node_set):
+                    continue
+                for kv in v_entry.value.items():
+                    if kv.key == "weight":
+                        continue
+                    var tmp = kv.value
+                    sg.set_edge_attr(u_entry.key, v_entry.key, kv.key, tmp)
+
+        return
 
     fn clear(mut self):
         self._succ = Dict[Self.N, Dict[Self.N, Float64]]()

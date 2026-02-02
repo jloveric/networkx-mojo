@@ -60,6 +60,25 @@ struct MultiGraph[N: KeyElement & ImplicitlyCopyable]:
             result.append(node)
         return result^
 
+    fn adj_view(ref self) -> ref[self._adj] Dict[Self.N, Dict[Self.N, Dict[Int, Float64]]]:
+        return self._adj
+
+    fn adj(ref self, node: Self.N) raises -> List[Self.N]:
+        return self.neighbors(node)
+
+    fn neighbors(ref self, node: Self.N) raises -> List[Self.N]:
+        var result = List[Self.N]()
+        for nbr in self._adj[node].keys():
+            result.append(nbr)
+        return result^
+
+    fn for_each_neighbor[callback: fn(Self.N)](ref self, node: Self.N) raises -> Int:
+        var count = 0
+        for nbr in self._adj[node].keys():
+            callback(nbr)
+            count += 1
+        return count
+
     fn add_node(mut self, node: Self.N):
         _ = self._adj.setdefault(node, Dict[Self.N, Dict[Int, Float64]]())
         _ = self._node_attr.setdefault(node, Dict[String, AttrValue]())
@@ -114,6 +133,101 @@ struct MultiGraph[N: KeyElement & ImplicitlyCopyable]:
 
         return k
 
+    fn add_edges_from(mut self, edges: List[Tuple[Self.N, Self.N]]) raises:
+        for e in edges:
+            _ = self.add_edge(e[0], e[1])
+
+    fn copy(ref self, out g: MultiGraph[Self.N]) raises:
+        g = MultiGraph[Self.N]()
+
+        for node in self._adj.keys():
+            g.add_node(node)
+
+        var processed = Set[Self.N]()
+        for entry in self._adj.items():
+            for nbr_entry in entry.value.items():
+                var v = nbr_entry.key
+                if v in processed:
+                    continue
+                for k_entry in nbr_entry.value.items():
+                    _ = g.add_edge(entry.key, v, k_entry.value, k_entry.key)
+            processed.add(entry.key)
+
+        for entry in self._graph_attr.items():
+            g.set_graph_attr(entry.key, entry.value)
+
+        for entry in self._node_attr.items():
+            for kv in entry.value.items():
+                g.set_node_attr(entry.key, kv.key, kv.value)
+
+        var processed_edges = Set[Self.N]()
+        for u_entry in self._edge_attr.items():
+            for v_entry in u_entry.value.items():
+                var v = v_entry.key
+                if v in processed_edges:
+                    continue
+                for k_entry in v_entry.value.items():
+                    for kv in k_entry.value.items():
+                        if kv.key == "weight":
+                            continue
+                        var tmp = kv.value
+                        g.set_edge_attr(u_entry.key, v, k_entry.key, kv.key, tmp)
+            processed_edges.add(u_entry.key)
+
+        return
+
+    fn subgraph(ref self, nodes: List[Self.N], out sg: MultiGraph[Self.N]) raises:
+        sg = MultiGraph[Self.N]()
+        var node_set = Set[Self.N]()
+
+        for n in nodes:
+            if self.has_node(n):
+                sg.add_node(n)
+                node_set.add(n)
+
+        for entry in self._graph_attr.items():
+            sg.set_graph_attr(entry.key, entry.value)
+
+        for entry in self._node_attr.items():
+            if not (entry.key in node_set):
+                continue
+            for kv in entry.value.items():
+                sg.set_node_attr(entry.key, kv.key, kv.value)
+
+        var processed = Set[Self.N]()
+        for entry in self._adj.items():
+            if not (entry.key in node_set):
+                continue
+            for nbr_entry in entry.value.items():
+                var v = nbr_entry.key
+                if not (v in node_set):
+                    continue
+                if v in processed:
+                    continue
+                for k_entry in nbr_entry.value.items():
+                    _ = sg.add_edge(entry.key, v, k_entry.value, k_entry.key)
+            processed.add(entry.key)
+
+        var processed_edges = Set[Self.N]()
+        for u_entry in self._edge_attr.items():
+            if not (u_entry.key in node_set):
+                continue
+            for v_entry in u_entry.value.items():
+                var v = v_entry.key
+                if not (v in node_set):
+                    continue
+                if v in processed_edges:
+                    continue
+                for k_entry in v_entry.value.items():
+                    for kv in k_entry.value.items():
+                        if kv.key == "weight":
+                            continue
+                        var tmp = kv.value
+                        sg.set_edge_attr(u_entry.key, v, k_entry.key, kv.key, tmp)
+            processed_edges.add(u_entry.key)
+
+        return
+
     fn has_edge(self, u: Self.N, v: Self.N) -> Bool:
         try:
             return v in self._adj[u]
@@ -160,6 +274,42 @@ struct MultiGraph[N: KeyElement & ImplicitlyCopyable]:
         if node in self._adj[node]:
             d += len(self._adj[node][node])
         return d
+
+    fn clear(mut self):
+        self._adj = Dict[Self.N, Dict[Self.N, Dict[Int, Float64]]]()
+        self._graph_attr = Dict[String, AttrValue]()
+        self._node_attr = Dict[Self.N, Dict[String, AttrValue]]()
+        self._edge_attr = Dict[Self.N, Dict[Self.N, Dict[Int, Dict[String, AttrValue]]]]()
+
+    fn remove_node(mut self, node: Self.N) raises:
+        var neighbors = self._adj.pop(node)
+        for entry in neighbors.items():
+            var nbr = entry.key
+            if nbr == node:
+                continue
+            try:
+                _ = self._adj[nbr].pop(node)
+            except:
+                pass
+
+        try:
+            _ = self._node_attr.pop(node)
+        except:
+            pass
+
+        try:
+            _ = self._edge_attr.pop(node)
+        except:
+            pass
+
+        for entry in neighbors.items():
+            var nbr = entry.key
+            if nbr == node:
+                continue
+            try:
+                _ = self._edge_attr[nbr].pop(node)
+            except:
+                pass
 
     fn remove_edge(mut self, u: Self.N, v: Self.N, key: Int) raises:
         if not self.has_edge_key(u, v, key):

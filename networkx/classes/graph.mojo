@@ -168,6 +168,14 @@ struct Graph[N: KeyElement & ImplicitlyCopyable]:
 
         return comps^
 
+    fn number_connected_components(ref self) raises -> Int:
+        return len(self.connected_components())
+
+    fn is_connected(ref self) raises -> Bool:
+        if self.number_of_nodes() == 0:
+            return True
+        return self.number_connected_components() == 1
+
     fn minimum_spanning_tree(ref self, out mst: Graph[Self.N]) raises:
         mst = Graph[Self.N]()
         for node in self._adj.keys():
@@ -470,6 +478,93 @@ struct Graph[N: KeyElement & ImplicitlyCopyable]:
     fn add_edges_from(mut self, edges: List[Tuple[Self.N, Self.N]]):
         for e in edges:
             self.add_edge(e[0], e[1])
+
+    fn copy(ref self, out g: Graph[Self.N]) raises:
+        g = Graph[Self.N]()
+
+        for node in self._adj.keys():
+            g.add_node(node)
+
+        var processed = Set[Self.N]()
+        for entry in self._adj.items():
+            for nbr_entry in entry.value.items():
+                var v = nbr_entry.key
+                if v in processed:
+                    continue
+                g.add_edge(entry.key, v, nbr_entry.value)
+            processed.add(entry.key)
+
+        for entry in self._graph_attr.items():
+            g.set_graph_attr(entry.key, entry.value)
+
+        for entry in self._node_attr.items():
+            for kv in entry.value.items():
+                g.set_node_attr(entry.key, kv.key, kv.value)
+
+        var processed_edges = Set[Self.N]()
+        for u_entry in self._edge_attr.items():
+            for v_entry in u_entry.value.items():
+                var v = v_entry.key
+                if v in processed_edges:
+                    continue
+                for kv in v_entry.value.items():
+                    if kv.key == "weight":
+                        continue
+                    var tmp = kv.value
+                    g.set_edge_attr(u_entry.key, v, kv.key, tmp)
+            processed_edges.add(u_entry.key)
+
+        return
+
+    fn subgraph(ref self, nodes: List[Self.N], out sg: Graph[Self.N]) raises:
+        sg = Graph[Self.N]()
+        var node_set = Set[Self.N]()
+
+        for n in nodes:
+            if self.has_node(n):
+                sg.add_node(n)
+                node_set.add(n)
+
+        for entry in self._graph_attr.items():
+            sg.set_graph_attr(entry.key, entry.value)
+
+        for entry in self._node_attr.items():
+            if not (entry.key in node_set):
+                continue
+            for kv in entry.value.items():
+                sg.set_node_attr(entry.key, kv.key, kv.value)
+
+        var processed = Set[Self.N]()
+        for entry in self._adj.items():
+            if not (entry.key in node_set):
+                continue
+            for nbr_entry in entry.value.items():
+                var v = nbr_entry.key
+                if not (v in node_set):
+                    continue
+                if v in processed:
+                    continue
+                sg.add_edge(entry.key, v, nbr_entry.value)
+            processed.add(entry.key)
+
+        var processed_edges = Set[Self.N]()
+        for u_entry in self._edge_attr.items():
+            if not (u_entry.key in node_set):
+                continue
+            for v_entry in u_entry.value.items():
+                var v = v_entry.key
+                if not (v in node_set):
+                    continue
+                if v in processed_edges:
+                    continue
+                for kv in v_entry.value.items():
+                    if kv.key == "weight":
+                        continue
+                    var tmp = kv.value
+                    sg.set_edge_attr(u_entry.key, v, kv.key, tmp)
+            processed_edges.add(u_entry.key)
+
+        return
 
     fn clear(mut self):
         self._adj = Dict[Self.N, Dict[Self.N, Float64]]()

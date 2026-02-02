@@ -1,6 +1,8 @@
 from networkx import Graph
 from testing import assert_equal, assert_true, assert_false
+from utils import Variant
 
+comptime AttrValue = Variant[Int, Float64, Bool, String]
 
 fn _noop_node(x: Int):
     _ = x
@@ -94,3 +96,24 @@ fn main() raises:
     g2.clear()
     assert_equal(g2.number_of_nodes(), 0)
     assert_equal(g2.number_of_edges(), 0)
+
+    var g3 = Graph[Int]()
+    g3.add_edge(1, 2, 2.0)
+    g3.add_edge(2, 3, 3.0)
+    g3.set_graph_attr("name", AttrValue("g3"))
+    g3.set_node_attr(2, "color", AttrValue("blue"))
+    var cap = AttrValue(7)
+    g3.set_edge_attr(1, 2, "capacity", cap)
+
+    var g3c = g3.copy()
+    assert_equal(g3c.number_of_nodes(), 3)
+    assert_equal(g3c.number_of_edges(), 2)
+    assert_equal(g3c.get_graph_attr("name")[String], "g3")
+    assert_equal(g3c.get_node_attr(2, "color")[String], "blue")
+    assert_equal(g3c.get_edge_attr(1, 2, "capacity")[Int], 7)
+
+    var sg = g3.subgraph([2, 3])
+    assert_equal(sg.number_of_nodes(), 2)
+    assert_equal(sg.number_of_edges(), 1)
+    assert_equal(sg.get_graph_attr("name")[String], "g3")
+    assert_equal(sg.get_node_attr(2, "color")[String], "blue")
