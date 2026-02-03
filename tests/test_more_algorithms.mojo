@@ -56,6 +56,35 @@ fn main() raises:
     assert_equal(ss_dj[2][0], 1)
     assert_equal(ss_dj[2][len(ss_dj[2]) - 1], 2)
 
+    var fw = gw.floyd_warshall()
+    assert_equal(fw[1][1], 0.0)
+    assert_equal(fw[1][3], 2.0)
+    assert_equal(fw[1][2], 3.0)
+
+    var pdd = gw.floyd_warshall_predecessor_and_distance()
+    var pred = pdd[0].copy()
+    var dist = pdd[1].copy()
+    assert_equal(dist[1][2], 3.0)
+    assert_equal(pred[1][2], 3)
+
+    var ms_len = gw.multi_source_dijkstra_path_length([1, 2])
+    assert_equal(ms_len[1], 0.0)
+    assert_equal(ms_len[2], 0.0)
+    assert_equal(ms_len[3], 1.0)
+
+    var ms_path = gw.multi_source_dijkstra_path([1, 2])
+    var p3 = ms_path[3].copy()
+    assert_equal(p3[0], 2)
+    assert_equal(p3[len(p3) - 1], 3)
+
+    var bdl = gw.bidirectional_dijkstra_path_length(1, 2)
+    assert_equal(bdl, 3.0)
+    var bdp = gw.bidirectional_dijkstra_path(1, 2)
+    assert_equal(len(bdp), 3)
+    assert_equal(bdp[0], 1)
+    assert_equal(bdp[1], 3)
+    assert_equal(bdp[2], 2)
+
     var g_bfs = Graph[Int]()
     g_bfs.add_edges_from([(1, 2), (2, 3), (2, 4)])
     var be = g_bfs.bfs_edges(1)
@@ -117,6 +146,26 @@ fn main() raises:
     assert_equal(len(layers), 3)
     assert_equal(layers[0][0], 1)
 
+    var bpath = g_bfs.bidirectional_shortest_path(3, 4)
+    assert_equal(bpath[0], 3)
+    assert_equal(bpath[len(bpath) - 1], 4)
+    assert_equal(len(bpath), 3)
+
+    assert_true(g_bfs.has_path(1, 4))
+    var g_disc = Graph[Int]()
+    g_disc.add_edges_from([(1, 2), (3, 4)])
+    assert_false(g_disc.has_path(1, 4))
+
+    var ap_len = g_bfs.all_pairs_shortest_path_length()
+    assert_equal(ap_len[1][1], 0)
+    assert_equal(ap_len[1][4], 2)
+
+    var ap = g_bfs.all_pairs_shortest_path()
+    var p14 = ap[1][4].copy()
+    assert_equal(p14[0], 1)
+    assert_equal(p14[len(p14) - 1], 4)
+    assert_equal(len(p14) - 1, ap_len[1][4])
+
     var dg = DiGraph[Int]()
     dg.add_edges_from([(5, 6), (5, 7), (6, 8), (7, 8)])
     var order = dg.topological_sort()
@@ -161,6 +210,42 @@ fn main() raises:
     assert_equal(dg_sp[5][0], 5)
     assert_equal(dg_sp[8][0], 5)
     assert_equal(dg_sp[8][len(dg_sp[8]) - 1], 8)
+
+    var bd = dg.bidirectional_shortest_path(5, 8)
+    assert_equal(bd[0], 5)
+    assert_equal(bd[len(bd) - 1], 8)
+    assert_equal(len(bd), 3)
+
+    var dgw = DiGraph[Int]()
+    dgw.add_edge(1, 2, 1.0)
+    dgw.add_edge(2, 3, 2.0)
+    var d_fw = dgw.floyd_warshall()
+    assert_equal(d_fw[1][3], 3.0)
+    assert_equal(d_fw[3][1], 1.0e308)
+
+    var d_pdd = dgw.floyd_warshall_predecessor_and_distance()
+    var d_pred = d_pdd[0].copy()
+    var d_dist = d_pdd[1].copy()
+    assert_equal(d_dist[1][3], 3.0)
+    assert_equal(d_pred[1][3], 2)
+
+    var d_ms_len = dgw.multi_source_dijkstra_path_length([1, 3])
+    assert_equal(d_ms_len[1], 0.0)
+    assert_equal(d_ms_len[3], 0.0)
+    assert_equal(d_ms_len[2], 1.0)
+
+    var d_ms_path = dgw.multi_source_dijkstra_path([1, 3])
+    var dp2 = d_ms_path[2].copy()
+    assert_equal(dp2[0], 1)
+    assert_equal(dp2[len(dp2) - 1], 2)
+
+    var d_bdl = dgw.bidirectional_dijkstra_path_length(1, 3)
+    assert_equal(d_bdl, 3.0)
+    var d_bdp = dgw.bidirectional_dijkstra_path(1, 3)
+    assert_equal(len(d_bdp), 3)
+    assert_equal(d_bdp[0], 1)
+    assert_equal(d_bdp[1], 2)
+    assert_equal(d_bdp[2], 3)
 
     var cyc = DiGraph[Int]()
     cyc.add_edges_from([(1, 2), (2, 1)])
@@ -213,3 +298,14 @@ fn main() raises:
     var dbl = dg2.bfs_layers(1)
     assert_equal(len(dbl), 3)
     assert_equal(dbl[0][0], 1)
+
+    assert_true(dg2.has_path(1, 4))
+    assert_false(dg2.has_path(2, 1))
+
+    var dap_len = dg2.all_pairs_shortest_path_length()
+    assert_equal(dap_len[1][4], 2)
+    var dap = dg2.all_pairs_shortest_path()
+    var dp14 = dap[1][4].copy()
+    assert_equal(dp14[0], 1)
+    assert_equal(dp14[len(dp14) - 1], 4)
+    assert_equal(len(dp14) - 1, dap_len[1][4])
