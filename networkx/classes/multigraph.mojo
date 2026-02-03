@@ -51,6 +51,9 @@ struct MultiGraph[N: KeyElement & ImplicitlyCopyable]:
     fn is_directed(self) -> Bool:
         return False
 
+    fn is_multigraph(self) -> Bool:
+        return True
+
     fn has_node(self, node: Self.N) -> Bool:
         return node in self._adj
 
@@ -311,6 +314,14 @@ struct MultiGraph[N: KeyElement & ImplicitlyCopyable]:
             except:
                 pass
 
+    fn remove_nodes_from(mut self, nodes: List[Self.N]):
+        for n in nodes:
+            if self.has_node(n):
+                try:
+                    self.remove_node(n)
+                except:
+                    pass
+
     fn remove_edge(mut self, u: Self.N, v: Self.N, key: Int) raises:
         if not self.has_edge_key(u, v, key):
             raise Error("edge not in graph")
@@ -370,6 +381,14 @@ struct MultiGraph[N: KeyElement & ImplicitlyCopyable]:
                     pass
             except:
                 pass
+
+    fn remove_edges_from(mut self, edges: List[Tuple[Self.N, Self.N, Int]]):
+        for e in edges:
+            if self.has_edge_key(e[0], e[1], e[2]):
+                try:
+                    self.remove_edge(e[0], e[1], e[2])
+                except:
+                    pass
 
     fn set_edge_attr(mut self, u: Self.N, v: Self.N, edge_key: Int, key: String, mut value: AttrValue) raises:
         if not self.has_edge_key(u, v, edge_key):

@@ -11,6 +11,8 @@ fn main() raises:
     var k0 = g.add_edge(1, 2, 3.0)
     var k1 = g.add_edge(1, 2, 5.0)
 
+    assert_true(g.is_multigraph())
+
     assert_true(g.has_edge(1, 2))
     assert_true(g.has_edge_key(1, 2, k0))
     assert_true(g.has_edge_key(1, 2, k1))
@@ -47,6 +49,9 @@ fn main() raises:
     assert_false(g.has_edge_key(1, 2, k0))
     assert_equal(g.number_of_edges(), 1)
 
+    g.remove_edges_from([(1, 2, k0), (1, 2, 99)])
+    assert_equal(g.number_of_edges(), 1)
+
     var g2 = MultiDiGraph[Int]()
     _ = g2.add_edge(1, 2)
     _ = g2.add_edge(3, 1)
@@ -54,6 +59,9 @@ fn main() raises:
     g2.remove_node(1)
     assert_false(g2.has_node(1))
     assert_equal(g2.number_of_edges(), 0)
+
+    g2.remove_nodes_from([1, 99])
+    assert_equal(g2.number_of_nodes(), 2)
 
     _ = g2.add_edge(4, 5)
     assert_equal(g2.number_of_edges(), 1)

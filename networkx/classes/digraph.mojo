@@ -73,6 +73,9 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
     fn is_directed(self) -> Bool:
         return True
 
+    fn is_multigraph(self) -> Bool:
+        return False
+
     fn is_dag(ref self) -> Bool:
         try:
             _ = self.topological_sort()
@@ -602,6 +605,14 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
         except:
             pass
 
+    fn remove_edges_from(mut self, edges: List[Tuple[Self.N, Self.N]]):
+        for e in edges:
+            if self.has_edge(e[0], e[1]):
+                try:
+                    self.remove_edge(e[0], e[1])
+                except:
+                    pass
+
     fn remove_node(mut self, node: Self.N) raises:
         var out_neighbors = self._succ.pop(node)
         for v in out_neighbors.keys():
@@ -630,3 +641,11 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
             _ = self._edge_attr.pop(node)
         except:
             pass
+
+    fn remove_nodes_from(mut self, nodes: List[Self.N]):
+        for n in nodes:
+            if self.has_node(n):
+                try:
+                    self.remove_node(n)
+                except:
+                    pass

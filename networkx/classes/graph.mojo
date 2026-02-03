@@ -142,6 +142,9 @@ struct Graph[N: KeyElement & ImplicitlyCopyable]:
     fn is_directed(self) -> Bool:
         return False
 
+    fn is_multigraph(self) -> Bool:
+        return False
+
     fn connected_components(ref self) raises -> List[List[Self.N]]:
         var seen = Set[Self.N]()
         var comps = List[List[Self.N]]()
@@ -670,6 +673,14 @@ struct Graph[N: KeyElement & ImplicitlyCopyable]:
             except:
                 pass
 
+    fn remove_edges_from(mut self, edges: List[Tuple[Self.N, Self.N]]):
+        for e in edges:
+            if self.has_edge(e[0], e[1]):
+                try:
+                    self.remove_edge(e[0], e[1])
+                except:
+                    pass
+
     fn remove_node(mut self, node: Self.N) raises:
         var neighbors = self._adj.pop(node)
         for nbr in neighbors.keys():
@@ -694,3 +705,11 @@ struct Graph[N: KeyElement & ImplicitlyCopyable]:
                 _ = self._edge_attr[nbr].pop(node)
             except:
                 pass
+
+    fn remove_nodes_from(mut self, nodes: List[Self.N]):
+        for n in nodes:
+            if self.has_node(n):
+                try:
+                    self.remove_node(n)
+                except:
+                    pass

@@ -20,6 +20,7 @@ fn main() raises:
     assert_equal(g.order(), 0)
     assert_equal(g.size(), 0)
     assert_true(g.is_directed())
+    assert_false(g.is_multigraph())
 
     g.add_edge(1, 2)
     assert_true(g.has_node(1))
@@ -79,6 +80,9 @@ fn main() raises:
     assert_false(g.has_edge(1, 2))
     assert_equal(g.number_of_edges(), 1)
 
+    g.remove_edges_from([(1, 2), (9, 9)])
+    assert_equal(g.number_of_edges(), 1)
+
     g.add_edge(1, 2)
     g.add_edge(3, 2)
     assert_true(g.has_edge(3, 2))
@@ -87,6 +91,9 @@ fn main() raises:
     assert_false(g.has_edge(1, 2))
     assert_false(g.has_edge(3, 2))
     assert_false(g.has_edge(2, 3))
+
+    g.remove_nodes_from([2, 99])
+    assert_equal(g.number_of_nodes(), 2)
 
     var g2 = DiGraph[Int]()
     g2.add_nodes_from([1, 2, 3])
