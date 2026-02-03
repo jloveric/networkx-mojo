@@ -29,6 +29,17 @@ fn main() raises:
     assert_false(g.has_edge(2, 1))
     assert_equal(g.number_of_edges(), 1)
 
+    ref succ_map = g.succ()
+    assert_true(1 in succ_map)
+    assert_true(2 in succ_map[1])
+
+    ref adj_map = g.adj()
+    assert_true(1 in adj_map)
+    assert_true(2 in adj_map[1])
+
+    var succ1 = g[1]
+    assert_true(2 in succ1)
+
     var n2 = 0
     for _ in g.succ_view().keys():
         n2 += 1

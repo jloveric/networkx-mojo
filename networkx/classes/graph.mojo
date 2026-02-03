@@ -179,6 +179,234 @@ struct Graph[N: KeyElement & ImplicitlyCopyable]:
             return True
         return self.number_connected_components() == 1
 
+    fn bfs_edges(ref self, source: Self.N) raises -> List[Tuple[Self.N, Self.N]]:
+        if not self.has_node(source):
+            raise Error("node not in graph")
+
+        var out = List[Tuple[Self.N, Self.N]]()
+        var seen = Set[Self.N]()
+        seen.add(source)
+
+        var queue = List[Self.N]()
+        queue.append(source)
+        var head = 0
+
+        while head < len(queue):
+            var u = queue[head]
+            head += 1
+            for v in self._adj[u].keys():
+                if v in seen:
+                    continue
+                seen.add(v)
+                queue.append(v)
+                out.append((u, v))
+
+        return out^
+
+    fn dfs_edges(ref self, source: Self.N) raises -> List[Tuple[Self.N, Self.N]]:
+        if not self.has_node(source):
+            raise Error("node not in graph")
+
+        var out = List[Tuple[Self.N, Self.N]]()
+        var seen = Set[Self.N]()
+        seen.add(source)
+
+        var stack = List[Self.N]()
+        stack.append(source)
+
+        while len(stack) > 0:
+            var u = stack.pop()
+            for v in self._adj[u].keys():
+                if v in seen:
+                    continue
+                seen.add(v)
+                stack.append(v)
+                out.append((u, v))
+
+        return out^
+
+    fn bfs_tree(ref self, source: Self.N, out t: Graph[Self.N]) raises:
+        if not self.has_node(source):
+            raise Error("node not in graph")
+
+        t = Graph[Self.N]()
+        t.add_node(source)
+
+        var seen = Set[Self.N]()
+        seen.add(source)
+
+        var queue = List[Self.N]()
+        queue.append(source)
+        var head = 0
+
+        while head < len(queue):
+            var u = queue[head]
+            head += 1
+            for e in self._adj[u].items():
+                var v = e.key
+                if v in seen:
+                    continue
+                seen.add(v)
+                queue.append(v)
+                t.add_edge(u, v, e.value)
+
+        return
+
+    fn dfs_tree(ref self, source: Self.N, out t: Graph[Self.N]) raises:
+        if not self.has_node(source):
+            raise Error("node not in graph")
+
+        t = Graph[Self.N]()
+        t.add_node(source)
+
+        var seen = Set[Self.N]()
+        seen.add(source)
+
+        var stack = List[Self.N]()
+        stack.append(source)
+
+        while len(stack) > 0:
+            var u = stack.pop()
+            for e in self._adj[u].items():
+                var v = e.key
+                if v in seen:
+                    continue
+                seen.add(v)
+                stack.append(v)
+                t.add_edge(u, v, e.value)
+
+        return
+
+    fn bfs_predecessors(ref self, source: Self.N) raises -> List[Tuple[Self.N, Self.N]]:
+        if not self.has_node(source):
+            raise Error("node not in graph")
+
+        var pred = Dict[Self.N, Self.N]()
+        var seen = Set[Self.N]()
+        seen.add(source)
+
+        var queue = List[Self.N]()
+        queue.append(source)
+        var head = 0
+
+        while head < len(queue):
+            var u = queue[head]
+            head += 1
+            for v in self._adj[u].keys():
+                if v in seen:
+                    continue
+                seen.add(v)
+                pred[v] = u
+                queue.append(v)
+
+        var out = List[Tuple[Self.N, Self.N]]()
+        for entry in pred.items():
+            out.append((entry.key, entry.value))
+        return out^
+
+    fn bfs_successors(ref self, source: Self.N) raises -> List[Tuple[Self.N, List[Self.N]]]:
+        if not self.has_node(source):
+            raise Error("node not in graph")
+
+        var succs = Dict[Self.N, List[Self.N]]()
+        var seen = Set[Self.N]()
+        seen.add(source)
+
+        var queue = List[Self.N]()
+        queue.append(source)
+        var head = 0
+
+        while head < len(queue):
+            var u = queue[head]
+            head += 1
+            for v in self._adj[u].keys():
+                if v in seen:
+                    continue
+                seen.add(v)
+                ref out_list = succs.setdefault(u, List[Self.N]())
+                out_list.append(v)
+                queue.append(v)
+
+        var out = List[Tuple[Self.N, List[Self.N]]]()
+        for entry in succs.items():
+            out.append((entry.key, entry.value.copy()))
+        return out^
+
+    fn dfs_predecessors(ref self, source: Self.N) raises -> List[Tuple[Self.N, Self.N]]:
+        if not self.has_node(source):
+            raise Error("node not in graph")
+
+        var pred = Dict[Self.N, Self.N]()
+        var seen = Set[Self.N]()
+        seen.add(source)
+
+        var stack = List[Self.N]()
+        stack.append(source)
+
+        while len(stack) > 0:
+            var u = stack.pop()
+            for v in self._adj[u].keys():
+                if v in seen:
+                    continue
+                seen.add(v)
+                pred[v] = u
+                stack.append(v)
+
+        var out = List[Tuple[Self.N, Self.N]]()
+        for entry in pred.items():
+            out.append((entry.key, entry.value))
+        return out^
+
+    fn dfs_successors(ref self, source: Self.N) raises -> List[Tuple[Self.N, List[Self.N]]]:
+        if not self.has_node(source):
+            raise Error("node not in graph")
+
+        var succs = Dict[Self.N, List[Self.N]]()
+        var seen = Set[Self.N]()
+        seen.add(source)
+
+        var stack = List[Self.N]()
+        stack.append(source)
+
+        while len(stack) > 0:
+            var u = stack.pop()
+            for v in self._adj[u].keys():
+                if v in seen:
+                    continue
+                seen.add(v)
+                ref out_list = succs.setdefault(u, List[Self.N]())
+                out_list.append(v)
+                stack.append(v)
+
+        var out = List[Tuple[Self.N, List[Self.N]]]()
+        for entry in succs.items():
+            out.append((entry.key, entry.value.copy()))
+        return out^
+
+    fn bfs_layers(ref self, source: Self.N) raises -> List[List[Self.N]]:
+        if not self.has_node(source):
+            raise Error("node not in graph")
+
+        var layers = List[List[Self.N]]()
+        var seen = Set[Self.N]()
+        seen.add(source)
+
+        var cur = List[Self.N]()
+        cur.append(source)
+
+        while len(cur) > 0:
+            layers.append(cur.copy())
+            var nxt = List[Self.N]()
+            for u in cur:
+                for v in self._adj[u].keys():
+                    if v in seen:
+                        continue
+                    seen.add(v)
+                    nxt.append(v)
+            cur = nxt^
+
+        return layers^
+
     fn minimum_spanning_tree(ref self, out mst: Graph[Self.N]) raises:
         mst = Graph[Self.N]()
         for node in self._adj.keys():
@@ -235,6 +463,224 @@ struct Graph[N: KeyElement & ImplicitlyCopyable]:
                 queue.append(v)
 
         raise Error("no path")
+
+    fn shortest_path_length(ref self, source: Self.N, target: Self.N) raises -> Int:
+        if not self.has_node(source) or not self.has_node(target):
+            raise Error("node not in graph")
+        if source == target:
+            return 0
+
+        var dist = Dict[Self.N, Int]()
+        dist[source] = 0
+        var seen = Set[Self.N]()
+        seen.add(source)
+
+        var queue = List[Self.N]()
+        queue.append(source)
+        var head = 0
+
+        while head < len(queue):
+            var u = queue[head]
+            head += 1
+            var du = dist[u]
+            for v in self._adj[u].keys():
+                if v in seen:
+                    continue
+                seen.add(v)
+                dist[v] = du + 1
+                if v == target:
+                    return dist[v]
+                queue.append(v)
+
+        raise Error("no path")
+
+    fn single_source_shortest_path_length(ref self, source: Self.N) raises -> Dict[Self.N, Int]:
+        if not self.has_node(source):
+            raise Error("node not in graph")
+
+        var dist = Dict[Self.N, Int]()
+        dist[source] = 0
+        var seen = Set[Self.N]()
+        seen.add(source)
+
+        var queue = List[Self.N]()
+        queue.append(source)
+        var head = 0
+
+        while head < len(queue):
+            var u = queue[head]
+            head += 1
+            var du = dist[u]
+            for v in self._adj[u].keys():
+                if v in seen:
+                    continue
+                seen.add(v)
+                dist[v] = du + 1
+                queue.append(v)
+
+        return dist^
+
+    fn single_source_shortest_path(ref self, source: Self.N) raises -> Dict[Self.N, List[Self.N]]:
+        if not self.has_node(source):
+            raise Error("node not in graph")
+
+        var parents = Dict[Self.N, Self.N]()
+        var dist = Dict[Self.N, Int]()
+        dist[source] = 0
+        var seen = Set[Self.N]()
+        seen.add(source)
+
+        var queue = List[Self.N]()
+        queue.append(source)
+        var head = 0
+
+        while head < len(queue):
+            var u = queue[head]
+            head += 1
+            var du = dist[u]
+            for v in self._adj[u].keys():
+                if v in seen:
+                    continue
+                seen.add(v)
+                parents[v] = u
+                dist[v] = du + 1
+                queue.append(v)
+
+        var paths = Dict[Self.N, List[Self.N]]()
+        for node in dist.keys():
+            if node == source:
+                paths[node] = [source]
+            else:
+                paths[node] = self._reconstruct_path(parents, source, node)
+        return paths^
+
+    fn dijkstra_path_length(ref self, source: Self.N, target: Self.N) raises -> Float64:
+        if not self.has_node(source) or not self.has_node(target):
+            raise Error("node not in graph")
+        if source == target:
+            return 0.0
+
+        var dist = Dict[Self.N, Float64]()
+        dist[source] = 0.0
+        var finalized = Set[Self.N]()
+
+        var heap = _MinHeap[Self.N]()
+        var push_count = 0
+        heap.push(_HeapItem[Self.N](0.0, push_count, source))
+        push_count += 1
+
+        while not heap.is_empty():
+            var item = heap.pop_min()
+            var u = item.node
+            if u in finalized:
+                continue
+            finalized.add(u)
+            if u == target:
+                break
+
+            var du = dist[u]
+            for e in self._adj[u].items():
+                var v = e.key
+                if v in finalized:
+                    continue
+                var nd = du + e.value
+                var better: Bool
+                try:
+                    better = nd < dist[v]
+                except:
+                    better = True
+                if better:
+                    dist[v] = nd
+                    heap.push(_HeapItem[Self.N](nd, push_count, v))
+                    push_count += 1
+
+        if not (target in dist):
+            raise Error("no path")
+        return dist[target]
+
+    fn single_source_dijkstra_path_length(ref self, source: Self.N) raises -> Dict[Self.N, Float64]:
+        if not self.has_node(source):
+            raise Error("node not in graph")
+
+        var dist = Dict[Self.N, Float64]()
+        dist[source] = 0.0
+        var finalized = Set[Self.N]()
+
+        var heap = _MinHeap[Self.N]()
+        var push_count = 0
+        heap.push(_HeapItem[Self.N](0.0, push_count, source))
+        push_count += 1
+
+        while not heap.is_empty():
+            var item = heap.pop_min()
+            var u = item.node
+            if u in finalized:
+                continue
+            finalized.add(u)
+
+            var du = dist[u]
+            for e in self._adj[u].items():
+                var v = e.key
+                if v in finalized:
+                    continue
+                var nd = du + e.value
+                var better: Bool
+                try:
+                    better = nd < dist[v]
+                except:
+                    better = True
+                if better:
+                    dist[v] = nd
+                    heap.push(_HeapItem[Self.N](nd, push_count, v))
+                    push_count += 1
+
+        return dist^
+
+    fn single_source_dijkstra_path(ref self, source: Self.N) raises -> Dict[Self.N, List[Self.N]]:
+        if not self.has_node(source):
+            raise Error("node not in graph")
+
+        var dist = Dict[Self.N, Float64]()
+        dist[source] = 0.0
+        var parents = Dict[Self.N, Self.N]()
+        var finalized = Set[Self.N]()
+
+        var heap = _MinHeap[Self.N]()
+        var push_count = 0
+        heap.push(_HeapItem[Self.N](0.0, push_count, source))
+        push_count += 1
+
+        while not heap.is_empty():
+            var item = heap.pop_min()
+            var u = item.node
+            if u in finalized:
+                continue
+            finalized.add(u)
+
+            var du = dist[u]
+            for e in self._adj[u].items():
+                var v = e.key
+                if v in finalized:
+                    continue
+                var nd = du + e.value
+                var better: Bool
+                try:
+                    better = nd < dist[v]
+                except:
+                    better = True
+                if better:
+                    dist[v] = nd
+                    parents[v] = u
+                    heap.push(_HeapItem[Self.N](nd, push_count, v))
+                    push_count += 1
+
+        var paths = Dict[Self.N, List[Self.N]]()
+        for node in dist.keys():
+            if node == source:
+                paths[node] = [source]
+            else:
+                paths[node] = self._reconstruct_path(parents, source, node)
+        return paths^
 
     fn dijkstra_path(ref self, source: Self.N, target: Self.N) raises -> List[Self.N]:
         if not self.has_node(source) or not self.has_node(target):
@@ -426,6 +872,12 @@ struct Graph[N: KeyElement & ImplicitlyCopyable]:
 
     fn adj_view(ref self) -> ref[self._adj] Dict[Self.N, Dict[Self.N, Float64]]:
         return self._adj
+
+    fn adj(ref self) -> ref[self._adj] Dict[Self.N, Dict[Self.N, Float64]]:
+        return self._adj
+
+    fn __getitem__(ref self, node: Self.N) raises -> Dict[Self.N, Float64]:
+        return self._adj[node].copy()
 
     fn for_each_node[callback: fn(Self.N)](ref self) -> Int:
         var count = 0

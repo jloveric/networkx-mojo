@@ -66,6 +66,18 @@ struct MultiDiGraph[N: KeyElement & ImplicitlyCopyable]:
     fn pred_view(ref self) -> ref[self._pred] Dict[Self.N, Dict[Self.N, Dict[Int, Float64]]]:
         return self._pred
 
+    fn succ(ref self) -> ref[self._succ] Dict[Self.N, Dict[Self.N, Dict[Int, Float64]]]:
+        return self._succ
+
+    fn pred(ref self) -> ref[self._pred] Dict[Self.N, Dict[Self.N, Dict[Int, Float64]]]:
+        return self._pred
+
+    fn adj(ref self) -> ref[self._succ] Dict[Self.N, Dict[Self.N, Dict[Int, Float64]]]:
+        return self._succ
+
+    fn __getitem__(ref self, node: Self.N) raises -> Dict[Self.N, Dict[Int, Float64]]:
+        return self._succ[node].copy()
+
     fn successors(ref self, node: Self.N) raises -> List[Self.N]:
         var result = List[Self.N]()
         for nbr in self._succ[node].keys():
@@ -150,6 +162,242 @@ struct MultiDiGraph[N: KeyElement & ImplicitlyCopyable]:
     fn add_edges_from(mut self, edges: List[Tuple[Self.N, Self.N]]) raises:
         for e in edges:
             _ = self.add_edge(e[0], e[1])
+
+    fn bfs_edges(ref self, source: Self.N) raises -> List[Tuple[Self.N, Self.N]]:
+        if not self.has_node(source):
+            raise Error("node not in graph")
+
+        var out = List[Tuple[Self.N, Self.N]]()
+        var seen = Set[Self.N]()
+        seen.add(source)
+
+        var queue = List[Self.N]()
+        queue.append(source)
+        var head = 0
+
+        while head < len(queue):
+            var u = queue[head]
+            head += 1
+            for v in self._succ[u].keys():
+                if v in seen:
+                    continue
+                seen.add(v)
+                queue.append(v)
+                out.append((u, v))
+
+        return out^
+
+    fn dfs_edges(ref self, source: Self.N) raises -> List[Tuple[Self.N, Self.N]]:
+        if not self.has_node(source):
+            raise Error("node not in graph")
+
+        var out = List[Tuple[Self.N, Self.N]]()
+        var seen = Set[Self.N]()
+        seen.add(source)
+
+        var stack = List[Self.N]()
+        stack.append(source)
+
+        while len(stack) > 0:
+            var u = stack.pop()
+            for v in self._succ[u].keys():
+                if v in seen:
+                    continue
+                seen.add(v)
+                stack.append(v)
+                out.append((u, v))
+
+        return out^
+
+    fn bfs_tree(ref self, source: Self.N, out t: MultiDiGraph[Self.N]) raises:
+        if not self.has_node(source):
+            raise Error("node not in graph")
+
+        t = MultiDiGraph[Self.N]()
+        t.add_node(source)
+
+        var seen = Set[Self.N]()
+        seen.add(source)
+
+        var queue = List[Self.N]()
+        queue.append(source)
+        var head = 0
+
+        while head < len(queue):
+            var u = queue[head]
+            head += 1
+            for nbr_entry in self._succ[u].items():
+                var v = nbr_entry.key
+                if v in seen:
+                    continue
+                seen.add(v)
+                queue.append(v)
+                var w = 1.0
+                for k_entry in nbr_entry.value.items():
+                    w = k_entry.value
+                    break
+                _ = t.add_edge(u, v, w)
+
+        return
+
+    fn dfs_tree(ref self, source: Self.N, out t: MultiDiGraph[Self.N]) raises:
+        if not self.has_node(source):
+            raise Error("node not in graph")
+
+        t = MultiDiGraph[Self.N]()
+        t.add_node(source)
+
+        var seen = Set[Self.N]()
+        seen.add(source)
+
+        var stack = List[Self.N]()
+        stack.append(source)
+
+        while len(stack) > 0:
+            var u = stack.pop()
+            for nbr_entry in self._succ[u].items():
+                var v = nbr_entry.key
+                if v in seen:
+                    continue
+                seen.add(v)
+                stack.append(v)
+                var w = 1.0
+                for k_entry in nbr_entry.value.items():
+                    w = k_entry.value
+                    break
+                _ = t.add_edge(u, v, w)
+
+        return
+
+    fn bfs_predecessors(ref self, source: Self.N) raises -> List[Tuple[Self.N, Self.N]]:
+        if not self.has_node(source):
+            raise Error("node not in graph")
+
+        var pred = Dict[Self.N, Self.N]()
+        var seen = Set[Self.N]()
+        seen.add(source)
+
+        var queue = List[Self.N]()
+        queue.append(source)
+        var head = 0
+
+        while head < len(queue):
+            var u = queue[head]
+            head += 1
+            for v in self._succ[u].keys():
+                if v in seen:
+                    continue
+                seen.add(v)
+                pred[v] = u
+                queue.append(v)
+
+        var out = List[Tuple[Self.N, Self.N]]()
+        for entry in pred.items():
+            out.append((entry.key, entry.value))
+        return out^
+
+    fn bfs_successors(ref self, source: Self.N) raises -> List[Tuple[Self.N, List[Self.N]]]:
+        if not self.has_node(source):
+            raise Error("node not in graph")
+
+        var succs = Dict[Self.N, List[Self.N]]()
+        var seen = Set[Self.N]()
+        seen.add(source)
+
+        var queue = List[Self.N]()
+        queue.append(source)
+        var head = 0
+
+        while head < len(queue):
+            var u = queue[head]
+            head += 1
+            for v in self._succ[u].keys():
+                if v in seen:
+                    continue
+                seen.add(v)
+                ref out_list = succs.setdefault(u, List[Self.N]())
+                out_list.append(v)
+                queue.append(v)
+
+        var out = List[Tuple[Self.N, List[Self.N]]]()
+        for entry in succs.items():
+            out.append((entry.key, entry.value.copy()))
+        return out^
+
+    fn dfs_predecessors(ref self, source: Self.N) raises -> List[Tuple[Self.N, Self.N]]:
+        if not self.has_node(source):
+            raise Error("node not in graph")
+
+        var pred = Dict[Self.N, Self.N]()
+        var seen = Set[Self.N]()
+        seen.add(source)
+
+        var stack = List[Self.N]()
+        stack.append(source)
+
+        while len(stack) > 0:
+            var u = stack.pop()
+            for v in self._succ[u].keys():
+                if v in seen:
+                    continue
+                seen.add(v)
+                pred[v] = u
+                stack.append(v)
+
+        var out = List[Tuple[Self.N, Self.N]]()
+        for entry in pred.items():
+            out.append((entry.key, entry.value))
+        return out^
+
+    fn dfs_successors(ref self, source: Self.N) raises -> List[Tuple[Self.N, List[Self.N]]]:
+        if not self.has_node(source):
+            raise Error("node not in graph")
+
+        var succs = Dict[Self.N, List[Self.N]]()
+        var seen = Set[Self.N]()
+        seen.add(source)
+
+        var stack = List[Self.N]()
+        stack.append(source)
+
+        while len(stack) > 0:
+            var u = stack.pop()
+            for v in self._succ[u].keys():
+                if v in seen:
+                    continue
+                seen.add(v)
+                ref out_list = succs.setdefault(u, List[Self.N]())
+                out_list.append(v)
+                stack.append(v)
+
+        var out = List[Tuple[Self.N, List[Self.N]]]()
+        for entry in succs.items():
+            out.append((entry.key, entry.value.copy()))
+        return out^
+
+    fn bfs_layers(ref self, source: Self.N) raises -> List[List[Self.N]]:
+        if not self.has_node(source):
+            raise Error("node not in graph")
+
+        var layers = List[List[Self.N]]()
+        var seen = Set[Self.N]()
+        seen.add(source)
+
+        var cur = List[Self.N]()
+        cur.append(source)
+
+        while len(cur) > 0:
+            layers.append(cur.copy())
+            var nxt = List[Self.N]()
+            for u in cur:
+                for v in self._succ[u].keys():
+                    if v in seen:
+                        continue
+                    seen.add(v)
+                    nxt.append(v)
+            cur = nxt^
+
+        return layers^
 
     fn copy(ref self, out g: MultiDiGraph[Self.N]) raises:
         g = MultiDiGraph[Self.N]()

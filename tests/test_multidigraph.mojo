@@ -1,4 +1,5 @@
 from networkx import MultiDiGraph
+from collections import Dict
 from testing import assert_equal, assert_true, assert_false
 from utils import Variant
 
@@ -21,6 +22,18 @@ fn main() raises:
     assert_equal(g.number_of_edges(), 2)
     assert_equal(g.out_degree(1), 2)
     assert_equal(g.in_degree(2), 2)
+
+    ref succ_map = g.succ()
+    assert_true(1 in succ_map)
+    assert_true(2 in succ_map[1])
+    assert_equal(len(succ_map[1][2]), 2)
+
+    ref adj_map = g.adj()
+    assert_true(1 in adj_map)
+    assert_true(2 in adj_map[1])
+
+    var succ1 = g[1]
+    assert_true(2 in succ1)
 
     assert_equal(g.degree(1), 2)
     assert_equal(g.degree(2), 2)
@@ -89,3 +102,68 @@ fn main() raises:
     assert_equal(sg.number_of_edges(), 1)
     assert_equal(sg.get_graph_attr("name")[String], "g3")
     assert_equal(sg.get_node_attr(2, "color")[String], "blue")
+
+    var gt = MultiDiGraph[Int]()
+    _ = gt.add_edge(1, 2)
+    _ = gt.add_edge(1, 2)
+    _ = gt.add_edge(2, 3)
+    _ = gt.add_edge(2, 4)
+
+    var be = gt.bfs_edges(1)
+    assert_equal(len(be), 3)
+    var seen_child = Dict[Int, Bool]()
+    for e in be:
+        seen_child[e[1]] = True
+    assert_true(2 in seen_child)
+    assert_true(3 in seen_child)
+    assert_true(4 in seen_child)
+
+    var bt = gt.bfs_tree(1)
+    assert_equal(bt.number_of_nodes(), 4)
+    assert_equal(bt.number_of_edges(), 3)
+
+    var de = gt.dfs_edges(1)
+    assert_equal(len(de), 3)
+    var seen_child2 = Dict[Int, Bool]()
+    for e in de:
+        seen_child2[e[1]] = True
+    assert_true(2 in seen_child2)
+    assert_true(3 in seen_child2)
+    assert_true(4 in seen_child2)
+
+    var dt = gt.dfs_tree(1)
+    assert_equal(dt.number_of_nodes(), 4)
+    assert_equal(dt.number_of_edges(), 3)
+
+    var bp = gt.bfs_predecessors(1)
+    assert_equal(len(bp), 3)
+    var parents = Dict[Int, Int]()
+    for kv in bp:
+        parents[kv[0]] = kv[1]
+    assert_true(2 in parents)
+    assert_true(3 in parents)
+    assert_true(4 in parents)
+
+    var bs = gt.bfs_successors(1)
+    var succ_seen = Dict[Int, Bool]()
+    for kv in bs:
+        for v in kv[1]:
+            succ_seen[v] = True
+    assert_true(2 in succ_seen)
+    assert_true(3 in succ_seen)
+    assert_true(4 in succ_seen)
+
+    var dp = gt.dfs_predecessors(1)
+    assert_equal(len(dp), 3)
+    var ds = gt.dfs_successors(1)
+    var succ_seen2 = Dict[Int, Bool]()
+    for kv in ds:
+        for v in kv[1]:
+            succ_seen2[v] = True
+    assert_true(2 in succ_seen2)
+    assert_true(3 in succ_seen2)
+    assert_true(4 in succ_seen2)
+
+    var layers = gt.bfs_layers(1)
+    assert_equal(len(layers), 3)
+    assert_equal(layers[0][0], 1)

@@ -32,6 +32,13 @@ fn main() raises:
     assert_equal(g.number_of_nodes(), 2)
     assert_equal(g.number_of_edges(), 1)
 
+    ref adj = g.adj()
+    assert_true(1 in adj)
+    assert_true(2 in adj)
+
+    var nbrs_map = g[1]
+    assert_true(2 in nbrs_map)
+
     assert_equal(g.for_each_node[_noop_node](), 2)
     assert_equal(g.for_each_neighbor[_noop_node](1), 1)
     assert_equal(g.for_each_edge[_noop_edge](), 1)
