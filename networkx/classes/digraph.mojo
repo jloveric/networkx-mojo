@@ -1035,17 +1035,14 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
         push_count += 1
 
         var best = INF
-        var meet = source
         var toggle = False
 
         while not heap_fwd.is_empty() or not heap_bwd.is_empty():
-            var do_bwd = False
+            var do_bwd = toggle
             if heap_fwd.is_empty():
                 do_bwd = True
             elif heap_bwd.is_empty():
                 do_bwd = False
-            else:
-                do_bwd = toggle
 
             if do_bwd:
                 var item = heap_bwd.pop_min()
@@ -1060,7 +1057,6 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
                     var cand = du + dist_fwd[u]
                     if cand < best:
                         best = cand
-                        meet = u
                 except:
                     pass
 
@@ -1084,7 +1080,6 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
                                 var cand2 = nd + dist_fwd[v]
                                 if cand2 < best:
                                     best = cand2
-                                    meet = v
                             except:
                                 pass
             else:
@@ -1100,7 +1095,6 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
                     var cand = du + dist_bwd[u]
                     if cand < best:
                         best = cand
-                        meet = u
                 except:
                     pass
 
@@ -1124,7 +1118,6 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
                                 var cand2 = nd + dist_bwd[v]
                                 if cand2 < best:
                                     best = cand2
-                                    meet = v
                             except:
                                 pass
 
@@ -1164,13 +1157,11 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
         var toggle = False
 
         while not heap_fwd.is_empty() or not heap_bwd.is_empty():
-            var do_bwd = False
+            var do_bwd = toggle
             if heap_fwd.is_empty():
                 do_bwd = True
             elif heap_bwd.is_empty():
                 do_bwd = False
-            else:
-                do_bwd = toggle
 
             if do_bwd:
                 var item = heap_bwd.pop_min()

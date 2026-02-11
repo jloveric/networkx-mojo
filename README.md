@@ -41,3 +41,28 @@ uv pip install mojo --extra-index-url https://modular.gateway.scarf.sh/simple/
 ```bash
 .venv/bin/mojo run -I . benches/graph_bench.mojo
 ```
+
+## Examples
+
+Grid pathfinding + visualization:
+
+![Grid pathfinding example](images/grid_paths.png)
+
+```bash
+.venv/bin/mojo run -I . examples/grid_pathfinding.mojo
+.venv/bin/python examples/visualize_grid.py
+```
+
+If you're using `uv run`, make sure you invoke `mojo run` with `-I .` so Mojo can
+resolve local modules (like `networkx`):
+
+```bash
+uv run mojo run -I . examples/grid_pathfinding.mojo
+uv run python examples/visualize_grid.py
+```
+
+The visualization script requires the optional dependencies:
+
+```bash
+uv pip install -e '.[bench]'
+```
