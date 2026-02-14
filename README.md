@@ -1,6 +1,6 @@
 # networkx-mojo
 
-An efficient Mojo implementation of a subset of the Python NetworkX API.
+Mojo implementation of a subset of the Python NetworkX API.
 
 ## Requirements
 
