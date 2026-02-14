@@ -17,18 +17,17 @@ the two families of algorithms will generally find **different** routes
 through the grid.  A* with a Euclidean heuristic explores fewer nodes
 than Dijkstra while finding the same optimal weighted path.
 
-The grid, obstacles, weights, and every path are written to
-  examples/grid_paths.txt
-which the companion script  examples/visualize_grid.py  reads to
-produce a matplotlib figure saved as  examples/grid_paths.png.
+This program renders a matplotlib figure saved as
+  images/grid_paths.png
+via Mojo's Python interop.
 
 Run:
     mojo run -I . examples/grid_pathfinding.mojo
-    python examples/visualize_grid.py
 """
 
 from networkx import Graph
 from math import sqrt
+from python import Python, PythonObject
 
 
 comptime ROWS = 15
@@ -182,36 +181,6 @@ fn main() raises:
     var cost_astar = _path_weight(g, path_astar)
     var cost_astar_steps = _path_weight(g, path_astar_steps)
 
-    var out = String()
-    out += "GRID " + String(ROWS) + " " + String(COLS) + "\n"
-    out += "OBSTACLES"
-    for obs in obstacles:
-        out += " " + String(obs)
-    out += "\n"
-    out += "WEIGHTS"
-    for entry in g._adj.items():
-        var u = entry.key
-        for e in entry.value.items():
-            var v = e.key
-            if u < v:
-                out += " " + String(u) + "," + String(v) + "," + String(e.value)
-    out += "\n"
-    out += "SOURCE " + String(source) + "\n"
-    out += "TARGET " + String(target) + "\n"
-
-    fn _write_path(mut buf: String, name: String, ref path: List[Int]):
-        buf += name
-        for i in range(len(path)):
-            buf += " " + String(path[i])
-        buf += "\n"
-
-    _write_path(out, "PATH_BFS", path_bfs)
-    _write_path(out, "PATH_BIDIR_BFS", path_bidir_bfs)
-    _write_path(out, "PATH_DIJKSTRA", path_dijkstra)
-    _write_path(out, "PATH_BIDIR_DIJKSTRA", path_bidir_dij)
-    _write_path(out, "PATH_ASTAR", path_astar)
-    _write_path(out, "PATH_ASTAR_STEPS", path_astar_steps)
-
     print("Grid:", ROWS, "x", COLS)
     print("Obstacles:", len(obstacles))
     print("Nodes in graph:", g.number_of_nodes())
@@ -224,9 +193,208 @@ fn main() raises:
     print("A* (Euclidean) path length:   ", len(path_astar) - 1, "steps, weight", cost_astar)
     print("A* (min steps) path length:   ", len(path_astar_steps) - 1, "steps, weight", cost_astar_steps)
 
-    with open("examples/grid_paths.txt", "w") as f:
-        f.write(out)
+    try:
+        var matplotlib: PythonObject = Python.import_module("matplotlib")
+        matplotlib.use("Agg")
+        var plt: PythonObject = Python.import_module("matplotlib.pyplot")
+        var mpatches: PythonObject = Python.import_module("matplotlib.patches")
+        var builtins: PythonObject = Python.import_module("builtins")
+        var os: PythonObject = Python.import_module("os")
+        os.makedirs("images", exist_ok=True)
 
-    print()
-    print("Path data written to examples/grid_paths.txt")
-    print("Run:  python examples/visualize_grid.py")
+        # Build a per-cell weight for the heatmap (max outgoing edge weight).
+        var display = Python.list()
+        r = 0
+        while r < ROWS:
+            var row = Python.list()
+            var c = 0
+            while c < COLS:
+                var nid = r * COLS + c
+                var w: Float64 = 1.0
+                if g.has_node(nid):
+                    for e in g._adj[nid].items():
+                        if e.value > w:
+                            w = e.value
+                row.append(w)
+                c += 1
+            display.append(row)
+            r += 1
+
+        var max_w = sqrt(2.0)
+
+        var path_keys = List[String]()
+        var path_titles = List[String]()
+        var path_colors = List[String]()
+        var path_costs = List[Float64]()
+        var path_lists = List[List[Int]]()
+
+        path_keys.append("PATH_BFS")
+        path_titles.append("BFS (min steps)")
+        path_colors.append("#2196F3")
+        path_costs.append(cost_bfs)
+        path_lists.append(path_bfs.copy())
+
+        path_keys.append("PATH_BIDIR_BFS")
+        path_titles.append("Bidirectional BFS (min steps)")
+        path_colors.append("#4CAF50")
+        path_costs.append(cost_bidir)
+        path_lists.append(path_bidir_bfs.copy())
+
+        path_keys.append("PATH_DIJKSTRA")
+        path_titles.append("Dijkstra (min total weight)")
+        path_colors.append("#FF9800")
+        path_costs.append(cost_dij)
+        path_lists.append(path_dijkstra.copy())
+
+        path_keys.append("PATH_BIDIR_DIJKSTRA")
+        path_titles.append("Bidir-Dijkstra (min weight)")
+        path_colors.append("#E91E63")
+        path_costs.append(cost_bdij)
+        path_lists.append(path_bidir_dij.copy())
+
+        path_keys.append("PATH_ASTAR")
+        path_titles.append("A* Euclidean (min weight)")
+        path_colors.append("#9C27B0")
+        path_costs.append(cost_astar)
+        path_lists.append(path_astar.copy())
+
+        path_keys.append("PATH_ASTAR_STEPS")
+        path_titles.append("A* Chebyshev (min steps)")
+        path_colors.append("#3F51B5")
+        path_costs.append(cost_astar_steps)
+        path_lists.append(path_astar_steps.copy())
+
+        var n_paths = len(path_keys)
+        var figsize_list = Python.list()
+        figsize_list.append(4.8 * Float64(n_paths))
+        figsize_list.append(6.0)
+        var figsize: PythonObject = builtins.tuple(figsize_list)
+        var fig: PythonObject = plt.figure(figsize=figsize)
+
+        var i = 0
+        while i < n_paths:
+            var ax: PythonObject = fig.add_subplot(1, n_paths, i + 1)
+            var title = path_titles[i]
+            var colour = path_colors[i]
+            var cost = path_costs[i]
+            var node_list = path_lists[i].copy()
+
+            var extent_list = Python.list()
+            extent_list.append(-0.5)
+            extent_list.append(Float64(COLS) - 0.5)
+            extent_list.append(Float64(ROWS) - 0.5)
+            extent_list.append(-0.5)
+            var extent: PythonObject = builtins.tuple(extent_list)
+
+            ax.imshow(
+                display,
+                origin="upper",
+                extent=extent,
+                cmap="YlOrRd",
+                vmin=1.0,
+                vmax=max_w,
+                alpha=0.7,
+            )
+
+            for obs in obstacles:
+                var orow = obs // COLS
+                var ocol = obs % COLS
+                var xy_list = Python.list()
+                xy_list.append(Float64(ocol) - 0.5)
+                xy_list.append(Float64(orow) - 0.5)
+                var xy: PythonObject = builtins.tuple(xy_list)
+                var rect = mpatches.Rectangle(
+                    xy,
+                    1.0,
+                    1.0,
+                    facecolor="#37474F",
+                    edgecolor="#263238",
+                    linewidth=0.6,
+                )
+                ax.add_patch(rect)
+
+            r = 0
+            while r <= ROWS:
+                ax.axhline(Float64(r) - 0.5, color="#BDBDBD", linewidth=0.3)
+                r += 1
+            var cc = 0
+            while cc <= COLS:
+                ax.axvline(Float64(cc) - 0.5, color="#BDBDBD", linewidth=0.3)
+                cc += 1
+
+            var pc = Python.list()
+            var pr = Python.list()
+            for n in node_list:
+                pr.append(n // COLS)
+                pc.append(n % COLS)
+
+            # White outline then coloured path
+            ax.plot(
+                pc,
+                pr,
+                color="white",
+                linewidth=4.5,
+                zorder=2,
+                alpha=0.5,
+                solid_capstyle="round",
+                solid_joinstyle="round",
+            )
+            ax.plot(
+                pc,
+                pr,
+                color=colour,
+                linewidth=2.8,
+                zorder=3,
+                alpha=0.9,
+                solid_capstyle="round",
+                solid_joinstyle="round",
+            )
+
+            var sr = source // COLS
+            var sc = source % COLS
+            var tr = target // COLS
+            var tc = target % COLS
+
+            ax.plot(
+                sc,
+                sr,
+                marker="o",
+                markersize=11,
+                color="#00C853",
+                markeredgecolor="black",
+                markeredgewidth=1.3,
+                zorder=5,
+            )
+            ax.plot(
+                tc,
+                tr,
+                marker="*",
+                markersize=15,
+                color="#FF1744",
+                markeredgecolor="black",
+                markeredgewidth=1.0,
+                zorder=5,
+            )
+
+            ax.set_title(
+                title + "\n" + String(len(node_list) - 1) + " steps · weight " + String(cost),
+                fontsize=10,
+                fontweight="bold",
+            )
+            ax.set_xlim(-0.5, Float64(COLS) - 0.5)
+            ax.set_ylim(Float64(ROWS) - 0.5, -0.5)
+            ax.set_xticks(Python.list())
+            ax.set_yticks(Python.list())
+            ax.set_aspect("equal")
+
+            i += 1
+
+        fig.suptitle("Grid Pathfinding — networkx-mojo", fontsize=14, fontweight="bold", y=1.01)
+        fig.tight_layout()
+        fig.savefig("images/grid_paths.png", dpi=150, bbox_inches="tight", facecolor="white")
+        print("Figure saved to images/grid_paths.png")
+    except:
+        print("Skipping plot: Python module 'matplotlib' is not installed.")
+        print("To enable plotting, install optional deps and re-run:")
+        print("    uv pip install -e '.[bench]'")
+
