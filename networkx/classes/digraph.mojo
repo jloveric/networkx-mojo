@@ -1,16 +1,31 @@
-from builtin.value import ImplicitlyCopyable
-from collections import Dict, List, Set
-from collections.dict import KeyElement
-from utils import Variant
+from std.traits.copyable import ImplicitlyCopyable
+from std.traits import Deinitable
+from std.collections import Dict, List, Set
+from std.collections.dict import KeyElement
+from std.utils import Variant
 from .._internal.heap import _HeapItem, _MinHeap
+from .._internal.dict_helpers import (
+    dict_get_nn,
+    dict_get_nf,
+    dict_get_ni,
+    dict_contains_key,
+    dict_contains_nested_key,
+    dict_neighbor_keys,
+    dict_adj_entries,
+    dict_set_inner_map,
+    dict_get_nf_cell,
+    dict_set_nf_cell,
+    dict_get_nn_cell,
+    dict_set_nn_cell,
+)
 
-fn _unit_weight[N: KeyElement & ImplicitlyCopyable](u: N, v: N) -> Float64:
+def _unit_weight[N: KeyElement & Deinitable & ImplicitlyCopyable](u: N, v: N) -> Float64:
     return 1.0
 
-fn _zero_heuristic[N: KeyElement & ImplicitlyCopyable](u: N, v: N) -> Float64:
+def _zero_heuristic[N: KeyElement & Deinitable & ImplicitlyCopyable](u: N, v: N) -> Float64:
     return 0.0
 
-fn _reverse_in_place[N: KeyElement & ImplicitlyCopyable](mut path: List[N]):
+def _reverse_in_place[N: KeyElement & Deinitable & ImplicitlyCopyable](mut path: List[N]):
     var i = 0
     var j = len(path) - 1
     while i < j:
@@ -22,68 +37,68 @@ fn _reverse_in_place[N: KeyElement & ImplicitlyCopyable](mut path: List[N]):
 
 comptime AttrValue = Variant[Int, Float64, Bool, String]
 
-struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
+struct DiGraph[N: KeyElement & Deinitable & ImplicitlyCopyable]:
     var _succ: Dict[Self.N, Dict[Self.N, Float64]]
     var _pred: Dict[Self.N, Dict[Self.N, Float64]]
     var _graph_attr: Dict[String, AttrValue]
     var _node_attr: Dict[Self.N, Dict[String, AttrValue]]
     var _edge_attr: Dict[Self.N, Dict[Self.N, Dict[String, AttrValue]]]
 
-    fn __init__(out self):
+    def __init__(out self):
         self._succ = Dict[Self.N, Dict[Self.N, Float64]]()
         self._pred = Dict[Self.N, Dict[Self.N, Float64]]()
         self._graph_attr = Dict[String, AttrValue]()
         self._node_attr = Dict[Self.N, Dict[String, AttrValue]]()
         self._edge_attr = Dict[Self.N, Dict[Self.N, Dict[String, AttrValue]]]()
 
-    fn _reconstruct_path(ref self, ref parents: Dict[Self.N, Self.N], source: Self.N, target: Self.N) raises -> List[Self.N]:
+    def _reconstruct_path(ref self, ref parents: Dict[Self.N, Self.N], source: Self.N, target: Self.N) raises -> List[Self.N]:
         var path = List[Self.N]()
-        var cur = target
+        var cur: Self.N = target
         path.append(cur)
         while cur != source:
-            cur = parents[cur]
+            cur = dict_get_nn(parents, cur)
             path.append(cur)
         _reverse_in_place(path)
         return path^
 
-    fn __len__(self) -> Int:
+    def __len__(self) -> Int:
         return self.number_of_nodes()
 
-    fn __contains__(self, node: Self.N) -> Bool:
+    def __contains__(self, node: Self.N) -> Bool:
         return self.has_node(node)
 
-    fn __iter__(self) -> Dict[Self.N, Dict[Self.N, Float64]].IteratorType[iterable_mut=False, iterable_origin=origin_of(self._succ)]:
+    def __iter__(self) -> Dict[Self.N, Dict[Self.N, Float64]].IteratorType[iterable_mut=False, iterable_origin=origin_of(self._succ)]:
         return self._succ.keys()
 
-    fn number_of_nodes(self) -> Int:
+    def number_of_nodes(self) -> Int:
         return len(self._succ)
 
-    fn order(self) -> Int:
+    def order(self) -> Int:
         return self.number_of_nodes()
 
-    fn number_of_edges(self) -> Int:
+    def number_of_edges(self) -> Int:
         var total_out_degree = 0
         for e in self._succ.items():
             total_out_degree += len(e.value)
         return total_out_degree
 
-    fn size(self) -> Int:
+    def size(self) -> Int:
         return self.number_of_edges()
 
-    fn is_directed(self) -> Bool:
+    def is_directed(self) -> Bool:
         return True
 
-    fn is_multigraph(self) -> Bool:
+    def is_multigraph(self) -> Bool:
         return False
 
-    fn is_dag(ref self) -> Bool:
+    def is_dag(ref self) -> Bool:
         try:
             _ = self.topological_sort()
             return True
         except:
             return False
 
-    fn bfs_edges(ref self, source: Self.N) raises -> List[Tuple[Self.N, Self.N]]:
+    def bfs_edges(ref self, source: Self.N) raises -> List[Tuple[Self.N, Self.N]]:
         if not self.has_node(source):
             raise Error("node not in graph")
 
@@ -96,9 +111,9 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
         var head = 0
 
         while head < len(queue):
-            var u = queue[head]
+            var u: Self.N = queue[head]
             head += 1
-            for v in self._succ[u].keys():
+            for v in dict_neighbor_keys(self._succ, u):
                 if v in seen:
                     continue
                 seen.add(v)
@@ -107,7 +122,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
 
         return out^
 
-    fn dfs_edges(ref self, source: Self.N) raises -> List[Tuple[Self.N, Self.N]]:
+    def dfs_edges(ref self, source: Self.N) raises -> List[Tuple[Self.N, Self.N]]:
         if not self.has_node(source):
             raise Error("node not in graph")
 
@@ -119,8 +134,8 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
         stack.append(source)
 
         while len(stack) > 0:
-            var u = stack.pop()
-            for v in self._succ[u].keys():
+            var u: Self.N = stack.pop()
+            for v in dict_neighbor_keys(self._succ, u):
                 if v in seen:
                     continue
                 seen.add(v)
@@ -129,7 +144,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
 
         return out^
 
-    fn bfs_tree(ref self, source: Self.N, out t: DiGraph[Self.N]) raises:
+    def bfs_tree(ref self, source: Self.N, out t: DiGraph[Self.N]) raises:
         if not self.has_node(source):
             raise Error("node not in graph")
 
@@ -144,19 +159,19 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
         var head = 0
 
         while head < len(queue):
-            var u = queue[head]
+            var u: Self.N = queue[head]
             head += 1
-            for e in self._succ[u].items():
-                var v = e.key
+            for e in dict_adj_entries(self._succ, u):
+                var v: Self.N = e[0]
                 if v in seen:
                     continue
                 seen.add(v)
                 queue.append(v)
-                t.add_edge(u, v, e.value)
+                t.add_edge(u, v, e[1])
 
         return
 
-    fn dfs_tree(ref self, source: Self.N, out t: DiGraph[Self.N]) raises:
+    def dfs_tree(ref self, source: Self.N, out t: DiGraph[Self.N]) raises:
         if not self.has_node(source):
             raise Error("node not in graph")
 
@@ -170,18 +185,18 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
         stack.append(source)
 
         while len(stack) > 0:
-            var u = stack.pop()
-            for e in self._succ[u].items():
-                var v = e.key
+            var u: Self.N = stack.pop()
+            for e in dict_adj_entries(self._succ, u):
+                var v: Self.N = e[0]
                 if v in seen:
                     continue
                 seen.add(v)
                 stack.append(v)
-                t.add_edge(u, v, e.value)
+                t.add_edge(u, v, e[1])
 
         return
 
-    fn bfs_predecessors(ref self, source: Self.N) raises -> List[Tuple[Self.N, Self.N]]:
+    def bfs_predecessors(ref self, source: Self.N) raises -> List[Tuple[Self.N, Self.N]]:
         if not self.has_node(source):
             raise Error("node not in graph")
 
@@ -194,9 +209,9 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
         var head = 0
 
         while head < len(queue):
-            var u = queue[head]
+            var u: Self.N = queue[head]
             head += 1
-            for v in self._succ[u].keys():
+            for v in dict_neighbor_keys(self._succ, u):
                 if v in seen:
                     continue
                 seen.add(v)
@@ -208,7 +223,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
             out.append((entry.key, entry.value))
         return out^
 
-    fn bfs_successors(ref self, source: Self.N) raises -> List[Tuple[Self.N, List[Self.N]]]:
+    def bfs_successors(ref self, source: Self.N) raises -> List[Tuple[Self.N, List[Self.N]]]:
         if not self.has_node(source):
             raise Error("node not in graph")
 
@@ -221,9 +236,9 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
         var head = 0
 
         while head < len(queue):
-            var u = queue[head]
+            var u: Self.N = queue[head]
             head += 1
-            for v in self._succ[u].keys():
+            for v in dict_neighbor_keys(self._succ, u):
                 if v in seen:
                     continue
                 seen.add(v)
@@ -236,7 +251,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
             out.append((entry.key, entry.value.copy()))
         return out^
 
-    fn dfs_predecessors(ref self, source: Self.N) raises -> List[Tuple[Self.N, Self.N]]:
+    def dfs_predecessors(ref self, source: Self.N) raises -> List[Tuple[Self.N, Self.N]]:
         if not self.has_node(source):
             raise Error("node not in graph")
 
@@ -248,8 +263,8 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
         stack.append(source)
 
         while len(stack) > 0:
-            var u = stack.pop()
-            for v in self._succ[u].keys():
+            var u: Self.N = stack.pop()
+            for v in dict_neighbor_keys(self._succ, u):
                 if v in seen:
                     continue
                 seen.add(v)
@@ -261,7 +276,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
             out.append((entry.key, entry.value))
         return out^
 
-    fn dfs_successors(ref self, source: Self.N) raises -> List[Tuple[Self.N, List[Self.N]]]:
+    def dfs_successors(ref self, source: Self.N) raises -> List[Tuple[Self.N, List[Self.N]]]:
         if not self.has_node(source):
             raise Error("node not in graph")
 
@@ -273,8 +288,8 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
         stack.append(source)
 
         while len(stack) > 0:
-            var u = stack.pop()
-            for v in self._succ[u].keys():
+            var u: Self.N = stack.pop()
+            for v in dict_neighbor_keys(self._succ, u):
                 if v in seen:
                     continue
                 seen.add(v)
@@ -287,7 +302,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
             out.append((entry.key, entry.value.copy()))
         return out^
 
-    fn bfs_layers(ref self, source: Self.N) raises -> List[List[Self.N]]:
+    def bfs_layers(ref self, source: Self.N) raises -> List[List[Self.N]]:
         if not self.has_node(source):
             raise Error("node not in graph")
 
@@ -302,7 +317,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
             layers.append(cur.copy())
             var nxt = List[Self.N]()
             for u in cur:
-                for v in self._succ[u].keys():
+                for v in dict_neighbor_keys(self._succ, u):
                     if v in seen:
                         continue
                     seen.add(v)
@@ -311,7 +326,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
 
         return layers^
 
-    fn descendants(ref self, node: Self.N) raises -> List[Self.N]:
+    def descendants(ref self, node: Self.N) raises -> List[Self.N]:
         if not self.has_node(node):
             raise Error("node not in graph")
 
@@ -323,18 +338,18 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
             stack.append(v)
 
         while len(stack) > 0:
-            var u = stack.pop()
+            var u: Self.N = stack.pop()
             if u in seen:
                 continue
             seen.add(u)
             out.append(u)
-            for v in self._succ[u].keys():
+            for v in dict_neighbor_keys(self._succ, u):
                 if not (v in seen):
                     stack.append(v)
 
         return out^
 
-    fn ancestors(ref self, node: Self.N) raises -> List[Self.N]:
+    def ancestors(ref self, node: Self.N) raises -> List[Self.N]:
         if not self.has_node(node):
             raise Error("node not in graph")
 
@@ -346,18 +361,18 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
             stack.append(v)
 
         while len(stack) > 0:
-            var u = stack.pop()
+            var u: Self.N = stack.pop()
             if u in seen:
                 continue
             seen.add(u)
             out.append(u)
-            for v in self._pred[u].keys():
+            for v in dict_neighbor_keys(self._pred, u):
                 if not (v in seen):
                     stack.append(v)
 
         return out^
 
-    fn topological_sort(ref self) raises -> List[Self.N]:
+    def topological_sort(ref self) raises -> List[Self.N]:
         var indeg = Dict[Self.N, Int]()
         for node in self._succ.keys():
             indeg[node] = 0
@@ -374,11 +389,11 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
         var out = List[Self.N]()
         var head = 0
         while head < len(queue):
-            var u = queue[head]
+            var u: Self.N = queue[head]
             head += 1
             out.append(u)
 
-            for v in self._succ[u].keys():
+            for v in dict_neighbor_keys(self._succ, u):
                 indeg[v] = indeg[v] - 1
                 if indeg[v] == 0:
                     queue.append(v)
@@ -387,7 +402,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
             raise Error("graph has a cycle")
         return out^
 
-    fn shortest_path(ref self, source: Self.N, target: Self.N) raises -> List[Self.N]:
+    def shortest_path(ref self, source: Self.N, target: Self.N) raises -> List[Self.N]:
         if not self.has_node(source) or not self.has_node(target):
             raise Error("node not in graph")
         if source == target:
@@ -402,9 +417,9 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
         var head = 0
 
         while head < len(queue):
-            var u = queue[head]
+            var u: Self.N = queue[head]
             head += 1
-            for v in self._succ[u].keys():
+            for v in dict_neighbor_keys(self._succ, u):
                 if v in visited:
                     continue
                 visited.add(v)
@@ -415,7 +430,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
 
         raise Error("no path")
 
-    fn bidirectional_shortest_path(ref self, source: Self.N, target: Self.N) raises -> List[Self.N]:
+    def bidirectional_shortest_path(ref self, source: Self.N, target: Self.N) raises -> List[Self.N]:
         if not self.has_node(source) or not self.has_node(target):
             raise Error("node not in graph")
         if source == target:
@@ -441,7 +456,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
             if len(frontier_fwd) <= len(frontier_bwd):
                 var next = List[Self.N]()
                 for u in frontier_fwd:
-                    for v in self._succ[u].keys():
+                    for v in dict_neighbor_keys(self._succ, u):
                         if v in visited_fwd:
                             continue
                         visited_fwd.add(v)
@@ -479,13 +494,13 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
             raise Error("no path")
 
         var path = self._reconstruct_path(parents_fwd, source, meet)
-        var cur = meet
+        var cur: Self.N = meet
         while cur != target:
-            cur = parents_bwd[cur]
+            cur = dict_get_nn(parents_bwd, cur)
             path.append(cur)
         return path^
 
-    fn shortest_path_length(ref self, source: Self.N, target: Self.N) raises -> Int:
+    def shortest_path_length(ref self, source: Self.N, target: Self.N) raises -> Int:
         if not self.has_node(source) or not self.has_node(target):
             raise Error("node not in graph")
         if source == target:
@@ -501,10 +516,10 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
         var head = 0
 
         while head < len(queue):
-            var u = queue[head]
+            var u: Self.N = queue[head]
             head += 1
-            var du = dist[u]
-            for v in self._succ[u].keys():
+            var du = dict_get_ni(dist, u)
+            for v in dict_neighbor_keys(self._succ, u):
                 if v in seen:
                     continue
                 seen.add(v)
@@ -515,7 +530,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
 
         raise Error("no path")
 
-    fn single_source_shortest_path_length(ref self, source: Self.N) raises -> Dict[Self.N, Int]:
+    def single_source_shortest_path_length(ref self, source: Self.N) raises -> Dict[Self.N, Int]:
         if not self.has_node(source):
             raise Error("node not in graph")
 
@@ -529,10 +544,10 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
         var head = 0
 
         while head < len(queue):
-            var u = queue[head]
+            var u: Self.N = queue[head]
             head += 1
-            var du = dist[u]
-            for v in self._succ[u].keys():
+            var du = dict_get_ni(dist, u)
+            for v in dict_neighbor_keys(self._succ, u):
                 if v in seen:
                     continue
                 seen.add(v)
@@ -541,7 +556,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
 
         return dist^
 
-    fn single_source_shortest_path(ref self, source: Self.N) raises -> Dict[Self.N, List[Self.N]]:
+    def single_source_shortest_path(ref self, source: Self.N) raises -> Dict[Self.N, List[Self.N]]:
         if not self.has_node(source):
             raise Error("node not in graph")
 
@@ -556,10 +571,10 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
         var head = 0
 
         while head < len(queue):
-            var u = queue[head]
+            var u: Self.N = queue[head]
             head += 1
-            var du = dist[u]
-            for v in self._succ[u].keys():
+            var du = dict_get_ni(dist, u)
+            for v in dict_neighbor_keys(self._succ, u):
                 if v in seen:
                     continue
                 seen.add(v)
@@ -575,7 +590,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
                 paths[node] = self._reconstruct_path(parents, source, node)
         return paths^
 
-    fn has_path(ref self, source: Self.N, target: Self.N) raises -> Bool:
+    def has_path(ref self, source: Self.N, target: Self.N) raises -> Bool:
         if not self.has_node(source) or not self.has_node(target):
             raise Error("node not in graph")
         if source == target:
@@ -589,9 +604,9 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
         var head = 0
 
         while head < len(queue):
-            var u = queue[head]
+            var u: Self.N = queue[head]
             head += 1
-            for v in self._succ[u].keys():
+            for v in dict_neighbor_keys(self._succ, u):
                 if v in visited:
                     continue
                 if v == target:
@@ -601,23 +616,23 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
 
         return False
 
-    fn all_pairs_shortest_path_length(ref self) raises -> Dict[Self.N, Dict[Self.N, Int]]:
+    def all_pairs_shortest_path_length(ref self) raises -> Dict[Self.N, Dict[Self.N, Int]]:
         var out = Dict[Self.N, Dict[Self.N, Int]]()
         for entry in self._succ.items():
-            var src = entry.key
+            var src: Self.N = entry.key
             var dist = self.single_source_shortest_path_length(src)
-            out[src] = dist^
+            dict_set_inner_map(out, src, dist^)
         return out^
 
-    fn all_pairs_shortest_path(ref self) raises -> Dict[Self.N, Dict[Self.N, List[Self.N]]]:
+    def all_pairs_shortest_path(ref self) raises -> Dict[Self.N, Dict[Self.N, List[Self.N]]]:
         var out = Dict[Self.N, Dict[Self.N, List[Self.N]]]()
         for entry in self._succ.items():
-            var src = entry.key
+            var src: Self.N = entry.key
             var paths = self.single_source_shortest_path(src)
-            out[src] = paths^
+            dict_set_inner_map(out, src, paths^)
         return out^
 
-    fn floyd_warshall(ref self) raises -> Dict[Self.N, Dict[Self.N, Float64]]:
+    def floyd_warshall(ref self) raises -> Dict[Self.N, Dict[Self.N, Float64]]:
         var nodes = self.nodes()
         var n = len(nodes)
         var INF = 1.0e308
@@ -625,7 +640,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
         var dist = Dict[Self.N, Dict[Self.N, Float64]]()
         var i = 0
         while i < n:
-            var u = nodes[i]
+            var u: Self.N = nodes[i]
             var row = Dict[Self.N, Float64]()
             var j = 0
             while j < n:
@@ -636,13 +651,12 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
             i += 1
 
         for entry in self._succ.items():
-            var u = entry.key
-            ref row_u = dist[u]
-            for e in entry.value.items():
-                var v = e.key
-                var w = e.value
-                if w < row_u[v]:
-                    row_u[v] = w
+            var u: Self.N = entry.key
+            for e in dict_adj_entries(self._succ, u):
+                var v: Self.N = e[0]
+                var w = e[1]
+                if w < dict_get_nf_cell(dist, u, v):
+                    dict_set_nf_cell(dist, u, v, w)
 
         var k = 0
         while k < n:
@@ -650,29 +664,27 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
             var i2 = 0
             while i2 < n:
                 var ii = nodes[i2]
-                ref row_i = dist[ii]
-                var dik = row_i[kk]
+                var dik = dict_get_nf_cell(dist, ii, kk)
                 if dik >= INF:
                     i2 += 1
                     continue
-                ref row_k = dist[kk]
                 var j2 = 0
                 while j2 < n:
                     var jj = nodes[j2]
-                    var dkj = row_k[jj]
+                    var dkj = dict_get_nf_cell(dist, kk, jj)
                     if dkj >= INF:
                         j2 += 1
                         continue
                     var nd = dik + dkj
-                    if nd < row_i[jj]:
-                        row_i[jj] = nd
+                    if nd < dict_get_nf_cell(dist, ii, jj):
+                        dict_set_nf_cell(dist, ii, jj, nd)
                     j2 += 1
                 i2 += 1
             k += 1
 
         return dist^
 
-    fn floyd_warshall_predecessor_and_distance(ref self) raises -> Tuple[Dict[Self.N, Dict[Self.N, Self.N]], Dict[Self.N, Dict[Self.N, Float64]]]:
+    def floyd_warshall_predecessor_and_distance(ref self) raises -> Tuple[Dict[Self.N, Dict[Self.N, Self.N]], Dict[Self.N, Dict[Self.N, Float64]]]:
         var nodes = self.nodes()
         var n = len(nodes)
         var INF = 1.0e308
@@ -682,7 +694,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
 
         var i = 0
         while i < n:
-            var u = nodes[i]
+            var u: Self.N = nodes[i]
             var drow = Dict[Self.N, Float64]()
             var prow = Dict[Self.N, Self.N]()
             var j = 0
@@ -696,15 +708,13 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
             i += 1
 
         for entry in self._succ.items():
-            var u = entry.key
-            ref drow_u = dist[u]
-            ref prow_u = pred[u]
-            for e in entry.value.items():
-                var v = e.key
-                var w = e.value
-                if w < drow_u[v]:
-                    drow_u[v] = w
-                    prow_u[v] = u
+            var u: Self.N = entry.key
+            for e in dict_adj_entries(self._succ, u):
+                var v: Self.N = e[0]
+                var w = e[1]
+                if w < dict_get_nf_cell(dist, u, v):
+                    dict_set_nf_cell(dist, u, v, w)
+                    dict_set_nn_cell(pred, u, v, u)
 
         var k = 0
         while k < n:
@@ -712,35 +722,31 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
             var i2 = 0
             while i2 < n:
                 var ii = nodes[i2]
-                ref drow_i = dist[ii]
-                var dik = drow_i[kk]
+                var dik = dict_get_nf_cell(dist, ii, kk)
                 if dik >= INF:
                     i2 += 1
                     continue
-                ref drow_k = dist[kk]
-                ref prow_k = pred[kk]
-                ref prow_i = pred[ii]
                 var j2 = 0
                 while j2 < n:
                     var jj = nodes[j2]
-                    var dkj = drow_k[jj]
+                    var dkj = dict_get_nf_cell(dist, kk, jj)
                     if dkj >= INF:
                         j2 += 1
                         continue
                     var nd = dik + dkj
-                    if nd < drow_i[jj]:
-                        drow_i[jj] = nd
+                    if nd < dict_get_nf_cell(dist, ii, jj):
+                        dict_set_nf_cell(dist, ii, jj, nd)
                         try:
-                            prow_i[jj] = prow_k[jj]
+                            dict_set_nn_cell(pred, ii, jj, dict_get_nn_cell(pred, kk, jj))
                         except:
-                            prow_i[jj] = kk
+                            dict_set_nn_cell(pred, ii, jj, kk)
                     j2 += 1
                 i2 += 1
             k += 1
 
         return (pred^, dist^)
 
-    fn dijkstra_path_length(ref self, source: Self.N, target: Self.N) raises -> Float64:
+    def dijkstra_path_length(ref self, source: Self.N, target: Self.N) raises -> Float64:
         if not self.has_node(source) or not self.has_node(target):
             raise Error("node not in graph")
         if source == target:
@@ -757,19 +763,19 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
 
         while not heap.is_empty():
             var item = heap.pop_min()
-            var u = item.node
+            var u: Self.N = item.node
             if u in finalized:
                 continue
             finalized.add(u)
             if u == target:
                 break
 
-            var du = dist[u]
-            for e in self._succ[u].items():
-                var v = e.key
+            var du = dict_get_nf(dist, u)
+            for e in dict_adj_entries(self._succ, u):
+                var v: Self.N = e[0]
                 if v in finalized:
                     continue
-                var nd = du + e.value
+                var nd = du + e[1]
                 var better: Bool
                 try:
                     better = nd < dist[v]
@@ -784,7 +790,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
             raise Error("no path")
         return dist[target]
 
-    fn single_source_dijkstra_path_length(ref self, source: Self.N) raises -> Dict[Self.N, Float64]:
+    def single_source_dijkstra_path_length(ref self, source: Self.N) raises -> Dict[Self.N, Float64]:
         if not self.has_node(source):
             raise Error("node not in graph")
 
@@ -799,17 +805,17 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
 
         while not heap.is_empty():
             var item = heap.pop_min()
-            var u = item.node
+            var u: Self.N = item.node
             if u in finalized:
                 continue
             finalized.add(u)
 
-            var du = dist[u]
-            for e in self._succ[u].items():
-                var v = e.key
+            var du = dict_get_nf(dist, u)
+            for e in dict_adj_entries(self._succ, u):
+                var v: Self.N = e[0]
                 if v in finalized:
                     continue
-                var nd = du + e.value
+                var nd = du + e[1]
                 var better: Bool
                 try:
                     better = nd < dist[v]
@@ -822,7 +828,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
 
         return dist^
 
-    fn single_source_dijkstra_path(ref self, source: Self.N) raises -> Dict[Self.N, List[Self.N]]:
+    def single_source_dijkstra_path(ref self, source: Self.N) raises -> Dict[Self.N, List[Self.N]]:
         if not self.has_node(source):
             raise Error("node not in graph")
 
@@ -838,17 +844,17 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
 
         while not heap.is_empty():
             var item = heap.pop_min()
-            var u = item.node
+            var u: Self.N = item.node
             if u in finalized:
                 continue
             finalized.add(u)
 
-            var du = dist[u]
-            for e in self._succ[u].items():
-                var v = e.key
+            var du = dict_get_nf(dist, u)
+            for e in dict_adj_entries(self._succ, u):
+                var v: Self.N = e[0]
                 if v in finalized:
                     continue
-                var nd = du + e.value
+                var nd = du + e[1]
                 var better: Bool
                 try:
                     better = nd < dist[v]
@@ -868,7 +874,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
                 paths[node] = self._reconstruct_path(parents, source, node)
         return paths^
 
-    fn multi_source_dijkstra_path_length(ref self, sources: List[Self.N]) raises -> Dict[Self.N, Float64]:
+    def multi_source_dijkstra_path_length(ref self, sources: List[Self.N]) raises -> Dict[Self.N, Float64]:
         if len(sources) == 0:
             raise Error("sources must not be empty")
 
@@ -886,17 +892,17 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
 
         while not heap.is_empty():
             var item = heap.pop_min()
-            var u = item.node
+            var u: Self.N = item.node
             if u in finalized:
                 continue
             finalized.add(u)
 
-            var du = dist[u]
-            for e in self._succ[u].items():
-                var v = e.key
+            var du = dict_get_nf(dist, u)
+            for e in dict_adj_entries(self._succ, u):
+                var v: Self.N = e[0]
                 if v in finalized:
                     continue
-                var nd = du + e.value
+                var nd = du + e[1]
                 var better: Bool
                 try:
                     better = nd < dist[v]
@@ -909,7 +915,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
 
         return dist^
 
-    fn multi_source_dijkstra_path(ref self, sources: List[Self.N]) raises -> Dict[Self.N, List[Self.N]]:
+    def multi_source_dijkstra_path(ref self, sources: List[Self.N]) raises -> Dict[Self.N, List[Self.N]]:
         if len(sources) == 0:
             raise Error("sources must not be empty")
 
@@ -930,18 +936,18 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
 
         while not heap.is_empty():
             var item = heap.pop_min()
-            var u = item.node
+            var u: Self.N = item.node
             if u in finalized:
                 continue
             finalized.add(u)
 
-            var du = dist[u]
+            var du = dict_get_nf(dist, u)
             var src_u = root[u]
-            for e in self._succ[u].items():
-                var v = e.key
+            for e in dict_adj_entries(self._succ, u):
+                var v: Self.N = e[0]
                 if v in finalized:
                     continue
-                var nd = du + e.value
+                var nd = du + e[1]
                 var better: Bool
                 try:
                     better = nd < dist[v]
@@ -963,7 +969,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
                 paths[node] = self._reconstruct_path(parents, src, node)
         return paths^
 
-    fn dijkstra_path(ref self, source: Self.N, target: Self.N) raises -> List[Self.N]:
+    def dijkstra_path(ref self, source: Self.N, target: Self.N) raises -> List[Self.N]:
         if not self.has_node(source) or not self.has_node(target):
             raise Error("node not in graph")
         if source == target:
@@ -981,19 +987,19 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
 
         while not heap.is_empty():
             var item = heap.pop_min()
-            var u = item.node
+            var u: Self.N = item.node
             if u in finalized:
                 continue
             finalized.add(u)
             if u == target:
                 break
 
-            var du = dist[u]
-            for e in self._succ[u].items():
-                var v = e.key
+            var du = dict_get_nf(dist, u)
+            for e in dict_adj_entries(self._succ, u):
+                var v: Self.N = e[0]
                 if v in finalized:
                     continue
-                var nd = du + e.value
+                var nd = du + e[1]
                 var better: Bool
                 try:
                     better = nd < dist[v]
@@ -1009,7 +1015,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
             raise Error("no path")
         return self._reconstruct_path(parents, source, target)
 
-    fn bidirectional_dijkstra_path_length(ref self, source: Self.N, target: Self.N) raises -> Float64:
+    def bidirectional_dijkstra_path_length(ref self, source: Self.N, target: Self.N) raises -> Float64:
         if not self.has_node(source) or not self.has_node(target):
             raise Error("node not in graph")
         if source == target:
@@ -1046,12 +1052,12 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
 
             if do_bwd:
                 var item = heap_bwd.pop_min()
-                var u = item.node
+                var u: Self.N = item.node
                 if u in finalized_bwd:
                     toggle = not toggle
                     continue
                 finalized_bwd.add(u)
-                var du = dist_bwd[u]
+                var du = dict_get_nf(dist_bwd, u)
 
                 try:
                     var cand = du + dist_fwd[u]
@@ -1061,11 +1067,11 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
                     pass
 
                 if du < best:
-                    for e in self._pred[u].items():
-                        var v = e.key
+                    for e in dict_adj_entries(self._pred, u):
+                        var v: Self.N = e[0]
                         if v in finalized_bwd:
                             continue
-                        var nd = du + e.value
+                        var nd = du + e[1]
                         var better: Bool
                         try:
                             better = nd < dist_bwd[v]
@@ -1077,19 +1083,19 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
                             heap_bwd.push(_HeapItem[Self.N](nd, push_count, v))
                             push_count += 1
                             try:
-                                var cand2 = nd + dist_fwd[v]
+                                var cand2 = nd + dict_get_nf(dist_fwd, v)
                                 if cand2 < best:
                                     best = cand2
                             except:
                                 pass
             else:
                 var item = heap_fwd.pop_min()
-                var u = item.node
+                var u: Self.N = item.node
                 if u in finalized_fwd:
                     toggle = not toggle
                     continue
                 finalized_fwd.add(u)
-                var du = dist_fwd[u]
+                var du = dict_get_nf(dist_fwd, u)
 
                 try:
                     var cand = du + dist_bwd[u]
@@ -1099,11 +1105,11 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
                     pass
 
                 if du < best:
-                    for e in self._succ[u].items():
-                        var v = e.key
+                    for e in dict_adj_entries(self._succ, u):
+                        var v: Self.N = e[0]
                         if v in finalized_fwd:
                             continue
-                        var nd = du + e.value
+                        var nd = du + e[1]
                         var better: Bool
                         try:
                             better = nd < dist_fwd[v]
@@ -1115,7 +1121,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
                             heap_fwd.push(_HeapItem[Self.N](nd, push_count, v))
                             push_count += 1
                             try:
-                                var cand2 = nd + dist_bwd[v]
+                                var cand2 = nd + dict_get_nf(dist_bwd, v)
                                 if cand2 < best:
                                     best = cand2
                             except:
@@ -1127,7 +1133,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
             raise Error("no path")
         return best
 
-    fn bidirectional_dijkstra_path(ref self, source: Self.N, target: Self.N) raises -> List[Self.N]:
+    def bidirectional_dijkstra_path(ref self, source: Self.N, target: Self.N) raises -> List[Self.N]:
         if not self.has_node(source) or not self.has_node(target):
             raise Error("node not in graph")
         if source == target:
@@ -1165,12 +1171,12 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
 
             if do_bwd:
                 var item = heap_bwd.pop_min()
-                var u = item.node
+                var u: Self.N = item.node
                 if u in finalized_bwd:
                     toggle = not toggle
                     continue
                 finalized_bwd.add(u)
-                var du = dist_bwd[u]
+                var du = dict_get_nf(dist_bwd, u)
 
                 try:
                     var cand = du + dist_fwd[u]
@@ -1181,11 +1187,11 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
                     pass
 
                 if du < best:
-                    for e in self._pred[u].items():
-                        var v = e.key
+                    for e in dict_adj_entries(self._pred, u):
+                        var v: Self.N = e[0]
                         if v in finalized_bwd:
                             continue
-                        var nd = du + e.value
+                        var nd = du + e[1]
                         var better: Bool
                         try:
                             better = nd < dist_bwd[v]
@@ -1197,7 +1203,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
                             heap_bwd.push(_HeapItem[Self.N](nd, push_count, v))
                             push_count += 1
                             try:
-                                var cand2 = nd + dist_fwd[v]
+                                var cand2 = nd + dict_get_nf(dist_fwd, v)
                                 if cand2 < best:
                                     best = cand2
                                     meet = v
@@ -1205,12 +1211,12 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
                                 pass
             else:
                 var item = heap_fwd.pop_min()
-                var u = item.node
+                var u: Self.N = item.node
                 if u in finalized_fwd:
                     toggle = not toggle
                     continue
                 finalized_fwd.add(u)
-                var du = dist_fwd[u]
+                var du = dict_get_nf(dist_fwd, u)
 
                 try:
                     var cand = du + dist_bwd[u]
@@ -1221,11 +1227,11 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
                     pass
 
                 if du < best:
-                    for e in self._succ[u].items():
-                        var v = e.key
+                    for e in dict_adj_entries(self._succ, u):
+                        var v: Self.N = e[0]
                         if v in finalized_fwd:
                             continue
-                        var nd = du + e.value
+                        var nd = du + e[1]
                         var better: Bool
                         try:
                             better = nd < dist_fwd[v]
@@ -1237,7 +1243,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
                             heap_fwd.push(_HeapItem[Self.N](nd, push_count, v))
                             push_count += 1
                             try:
-                                var cand2 = nd + dist_bwd[v]
+                                var cand2 = nd + dict_get_nf(dist_bwd, v)
                                 if cand2 < best:
                                     best = cand2
                                     meet = v
@@ -1255,13 +1261,13 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
         else:
             path = self._reconstruct_path(parents_fwd, source, meet)
 
-        var cur = meet
+        var cur: Self.N = meet
         while cur != target:
-            cur = parents_bwd[cur]
+            cur = dict_get_nn(parents_bwd, cur)
             path.append(cur)
         return path^
 
-    fn dijkstra_path_weighted[weight_fn: fn(Self.N, Self.N) -> Float64](ref self, source: Self.N, target: Self.N) raises -> List[Self.N]:
+    def dijkstra_path_weighted[weight_fn: def(Self.N, Self.N) thin -> Float64](ref self, source: Self.N, target: Self.N) raises -> List[Self.N]:
         if not self.has_node(source) or not self.has_node(target):
             raise Error("node not in graph")
         if source == target:
@@ -1279,15 +1285,15 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
 
         while not heap.is_empty():
             var item = heap.pop_min()
-            var u = item.node
+            var u: Self.N = item.node
             if u in finalized:
                 continue
             finalized.add(u)
             if u == target:
                 break
 
-            var du = dist[u]
-            for v in self._succ[u].keys():
+            var du = dict_get_nf(dist, u)
+            for v in dict_neighbor_keys(self._succ, u):
                 if v in finalized:
                     continue
                 var nd = du + weight_fn(u, v)
@@ -1306,7 +1312,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
             raise Error("no path")
         return self._reconstruct_path(parents, source, target)
 
-    fn astar_path(ref self, source: Self.N, target: Self.N) raises -> List[Self.N]:
+    def astar_path(ref self, source: Self.N, target: Self.N) raises -> List[Self.N]:
         if not self.has_node(source) or not self.has_node(target):
             raise Error("node not in graph")
         if source == target:
@@ -1324,7 +1330,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
 
         while not heap.is_empty():
             var item = heap.pop_min()
-            var u = item.node
+            var u: Self.N = item.node
             if u in closed:
                 continue
             if u == target:
@@ -1332,11 +1338,11 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
             closed.add(u)
 
             var gu = gscore[u]
-            for e in self._succ[u].items():
-                var v = e.key
+            for e in dict_adj_entries(self._succ, u):
+                var v: Self.N = e[0]
                 if v in closed:
                     continue
-                var tentative = gu + e.value
+                var tentative = gu + e[1]
                 var better: Bool
                 try:
                     better = tentative < gscore[v]
@@ -1350,7 +1356,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
 
         raise Error("no path")
 
-    fn astar_path_weighted[weight_fn: fn(Self.N, Self.N) -> Float64, heuristic_fn: fn(Self.N, Self.N) -> Float64](ref self, source: Self.N, target: Self.N) raises -> List[Self.N]:
+    def astar_path_weighted[weight_fn: def(Self.N, Self.N) thin -> Float64, heuristic_fn: def(Self.N, Self.N) thin -> Float64](ref self, source: Self.N, target: Self.N) raises -> List[Self.N]:
         if not self.has_node(source) or not self.has_node(target):
             raise Error("node not in graph")
         if source == target:
@@ -1368,7 +1374,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
 
         while not heap.is_empty():
             var item = heap.pop_min()
-            var u = item.node
+            var u: Self.N = item.node
             if u in closed:
                 continue
             if u == target:
@@ -1376,7 +1382,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
             closed.add(u)
 
             var gu = gscore[u]
-            for v in self._succ[u].keys():
+            for v in dict_neighbor_keys(self._succ, u):
                 if v in closed:
                     continue
                 var tentative = gu + weight_fn(u, v)
@@ -1394,90 +1400,89 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
 
         raise Error("no path")
 
-    fn has_node(self, node: Self.N) -> Bool:
+    def has_node(self, node: Self.N) -> Bool:
         return node in self._succ
 
-    fn nodes(ref self) -> List[Self.N]:
+    def nodes(ref self) -> List[Self.N]:
         var result = List[Self.N]()
         for node in self._succ.keys():
             result.append(node)
         return result^
 
-    fn succ_view(ref self) -> ref[self._succ] Dict[Self.N, Dict[Self.N, Float64]]:
+    def succ_view(ref self) -> ref[self._succ] Dict[Self.N, Dict[Self.N, Float64]]:
         return self._succ
 
-    fn pred_view(ref self) -> ref[self._pred] Dict[Self.N, Dict[Self.N, Float64]]:
+    def pred_view(ref self) -> ref[self._pred] Dict[Self.N, Dict[Self.N, Float64]]:
         return self._pred
 
-    fn succ(ref self) -> ref[self._succ] Dict[Self.N, Dict[Self.N, Float64]]:
+    def succ(ref self) -> ref[self._succ] Dict[Self.N, Dict[Self.N, Float64]]:
         return self._succ
 
-    fn pred(ref self) -> ref[self._pred] Dict[Self.N, Dict[Self.N, Float64]]:
+    def pred(ref self) -> ref[self._pred] Dict[Self.N, Dict[Self.N, Float64]]:
         return self._pred
 
-    fn adj(ref self) -> ref[self._succ] Dict[Self.N, Dict[Self.N, Float64]]:
+    def adj(ref self) -> ref[self._succ] Dict[Self.N, Dict[Self.N, Float64]]:
         return self._succ
 
-    fn __getitem__(ref self, node: Self.N) raises -> Dict[Self.N, Float64]:
+    def __getitem__(ref self, node: Self.N) raises -> Dict[Self.N, Float64]:
         return self._succ[node].copy()
 
-    fn for_each_node[callback: fn(Self.N)](ref self) -> Int:
+    def for_each_node[callback: def(Self.N) thin -> None](ref self) -> Int:
         var count = 0
         for node in self._succ.keys():
             callback(node)
             count += 1
         return count
 
-    fn successors(ref self, node: Self.N) raises -> List[Self.N]:
+    def successors(ref self, node: Self.N) raises -> List[Self.N]:
         var result = List[Self.N]()
         for nbr in self._succ[node].keys():
             result.append(nbr)
         return result^
 
-    fn for_each_successor[callback: fn(Self.N)](ref self, node: Self.N) raises -> Int:
+    def for_each_successor[callback: def(Self.N) thin -> None](ref self, node: Self.N) raises -> Int:
         var count = 0
         for nbr in self._succ[node].keys():
             callback(nbr)
             count += 1
         return count
 
-    fn neighbors(ref self, node: Self.N) raises -> List[Self.N]:
+    def neighbors(ref self, node: Self.N) raises -> List[Self.N]:
         return self.successors(node)
 
-    fn adj(ref self, node: Self.N) raises -> List[Self.N]:
+    def adj(ref self, node: Self.N) raises -> List[Self.N]:
         return self.successors(node)
 
-    fn predecessors(ref self, node: Self.N) raises -> List[Self.N]:
+    def predecessors(ref self, node: Self.N) raises -> List[Self.N]:
         var result = List[Self.N]()
         for nbr in self._pred[node].keys():
             result.append(nbr)
         return result^
 
-    fn for_each_predecessor[callback: fn(Self.N)](ref self, node: Self.N) raises -> Int:
+    def for_each_predecessor[callback: def(Self.N) thin -> None](ref self, node: Self.N) raises -> Int:
         var count = 0
         for nbr in self._pred[node].keys():
             callback(nbr)
             count += 1
         return count
 
-    fn add_node(mut self, node: Self.N):
+    def add_node(mut self, node: Self.N):
         _ = self._succ.setdefault(node, Dict[Self.N, Float64]())
         _ = self._pred.setdefault(node, Dict[Self.N, Float64]())
         _ = self._node_attr.setdefault(node, Dict[String, AttrValue]())
         _ = self._edge_attr.setdefault(node, Dict[Self.N, Dict[String, AttrValue]]())
 
-    fn add_nodes_from(mut self, nodes: List[Self.N]):
+    def add_nodes_from(mut self, nodes: List[Self.N]):
         for node in nodes:
             self.add_node(node)
 
-    fn add_edge(mut self, u: Self.N, v: Self.N, weight: Float64 = 1.0):
+    def add_edge(mut self, u: Self.N, v: Self.N, weight: Float64 = 1.0):
         ref succ_u = self._succ.setdefault(u, Dict[Self.N, Float64]())
+        succ_u[v] = weight
         _ = self._pred.setdefault(u, Dict[Self.N, Float64]())
 
         _ = self._succ.setdefault(v, Dict[Self.N, Float64]())
         ref pred_v = self._pred.setdefault(v, Dict[Self.N, Float64]())
-
-        succ_u[v] = weight
         pred_v[u] = weight
 
         _ = self._node_attr.setdefault(u, Dict[String, AttrValue]())
@@ -1486,11 +1491,11 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
         ref u_map = u_edges.setdefault(v, Dict[String, AttrValue]())
         u_map["weight"] = AttrValue(weight)
 
-    fn add_edges_from(mut self, edges: List[Tuple[Self.N, Self.N]]):
+    def add_edges_from(mut self, edges: List[Tuple[Self.N, Self.N]]):
         for e in edges:
             self.add_edge(e[0], e[1])
 
-    fn copy(ref self, out g: DiGraph[Self.N]) raises:
+    def copy(ref self, out g: DiGraph[Self.N]) raises:
         g = DiGraph[Self.N]()
 
         for node in self._succ.keys():
@@ -1517,7 +1522,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
 
         return
 
-    fn subgraph(ref self, nodes: List[Self.N], out sg: DiGraph[Self.N]) raises:
+    def subgraph(ref self, nodes: List[Self.N], out sg: DiGraph[Self.N]) raises:
         sg = DiGraph[Self.N]()
         var node_set = Set[Self.N]()
 
@@ -1539,7 +1544,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
             if not (entry.key in node_set):
                 continue
             for nbr_entry in entry.value.items():
-                var v = nbr_entry.key
+                var v: Self.N = nbr_entry.key
                 if not (v in node_set):
                     continue
                 sg.add_edge(entry.key, v, nbr_entry.value)
@@ -1558,31 +1563,31 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
 
         return
 
-    fn clear(mut self):
+    def clear(mut self):
         self._succ = Dict[Self.N, Dict[Self.N, Float64]]()
         self._pred = Dict[Self.N, Dict[Self.N, Float64]]()
         self._graph_attr = Dict[String, AttrValue]()
         self._node_attr = Dict[Self.N, Dict[String, AttrValue]]()
         self._edge_attr = Dict[Self.N, Dict[Self.N, Dict[String, AttrValue]]]()
 
-    fn set_graph_attr(mut self, key: String, value: AttrValue):
+    def set_graph_attr(mut self, key: String, value: AttrValue):
         self._graph_attr[key] = value
 
-    fn get_graph_attr(ref self, key: String) raises -> AttrValue:
+    def get_graph_attr(ref self, key: String) raises -> AttrValue:
         return self._graph_attr[key]
 
-    fn set_node_attr(mut self, node: Self.N, key: String, value: AttrValue) raises:
+    def set_node_attr(mut self, node: Self.N, key: String, value: AttrValue) raises:
         if not self.has_node(node):
             raise Error("node not in graph")
         ref attrs = self._node_attr.setdefault(node, Dict[String, AttrValue]())
         attrs[key] = value
 
-    fn get_node_attr(ref self, node: Self.N, key: String) raises -> AttrValue:
+    def get_node_attr(ref self, node: Self.N, key: String) raises -> AttrValue:
         if not self.has_node(node):
             raise Error("node not in graph")
         return self._node_attr[node][key]
 
-    fn set_edge_attr(mut self, u: Self.N, v: Self.N, key: String, mut value: AttrValue) raises:
+    def set_edge_attr(mut self, u: Self.N, v: Self.N, key: String, mut value: AttrValue) raises:
         if not self.has_edge(u, v):
             raise Error("edge not in graph")
 
@@ -1596,36 +1601,36 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
         ref u_map = u_edges.setdefault(v, Dict[String, AttrValue]())
         u_map[key] = value
 
-    fn get_edge_attr(ref self, u: Self.N, v: Self.N, key: String) raises -> AttrValue:
+    def get_edge_attr(ref self, u: Self.N, v: Self.N, key: String) raises -> AttrValue:
         if not self.has_edge(u, v):
             raise Error("edge not in graph")
         if key == "weight":
             return AttrValue(self._succ[u][v])
         return self._edge_attr[u][v][key]
 
-    fn out_degree(self, node: Self.N) raises -> Int:
+    def out_degree(self, node: Self.N) raises -> Int:
         return len(self._succ[node])
 
-    fn in_degree(self, node: Self.N) raises -> Int:
+    def in_degree(self, node: Self.N) raises -> Int:
         return len(self._pred[node])
 
-    fn degree(self, node: Self.N) raises -> Int:
+    def degree(self, node: Self.N) raises -> Int:
         return self.in_degree(node) + self.out_degree(node)
 
-    fn has_edge(self, u: Self.N, v: Self.N) -> Bool:
+    def has_edge(self, u: Self.N, v: Self.N) -> Bool:
         try:
             return v in self._succ[u]
         except:
             return False
 
-    fn edges(self) -> List[Tuple[Self.N, Self.N]]:
+    def edges(self) -> List[Tuple[Self.N, Self.N]]:
         var result = List[Tuple[Self.N, Self.N]]()
         for entry in self._succ.items():
             for nbr in entry.value.keys():
                 result.append((entry.key, nbr))
         return result^
 
-    fn for_each_edge[callback: fn(Self.N, Self.N)](ref self) -> Int:
+    def for_each_edge[callback: def(Self.N, Self.N) thin -> None](ref self) -> Int:
         var count = 0
         for entry in self._succ.items():
             for nbr in entry.value.keys():
@@ -1633,7 +1638,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
                 count += 1
         return count
 
-    fn remove_edge(mut self, u: Self.N, v: Self.N) raises:
+    def remove_edge(mut self, u: Self.N, v: Self.N) raises:
         if not self.has_edge(u, v):
             raise Error("edge not in graph")
 
@@ -1645,7 +1650,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
         except:
             pass
 
-    fn remove_edges_from(mut self, edges: List[Tuple[Self.N, Self.N]]):
+    def remove_edges_from(mut self, edges: List[Tuple[Self.N, Self.N]]):
         for e in edges:
             if self.has_edge(e[0], e[1]):
                 try:
@@ -1653,7 +1658,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
                 except:
                     pass
 
-    fn remove_node(mut self, node: Self.N) raises:
+    def remove_node(mut self, node: Self.N) raises:
         var out_neighbors = self._succ.pop(node)
         for v in out_neighbors.keys():
             _ = self._pred[v].pop(node)
@@ -1682,7 +1687,7 @@ struct DiGraph[N: KeyElement & ImplicitlyCopyable]:
         except:
             pass
 
-    fn remove_nodes_from(mut self, nodes: List[Self.N]):
+    def remove_nodes_from(mut self, nodes: List[Self.N]):
         for n in nodes:
             if self.has_node(n):
                 try:

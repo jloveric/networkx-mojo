@@ -23,11 +23,11 @@ jobs:
             **/pyproject.toml
             **/uv.lock
 
-      - name: Create venv and install Mojo (nightly)
+      - name: Create venv and install Mojo
         run: |
           uv venv
           . .venv/bin/activate
-          uv pip install mojo --index https://whl.modular.com/nightly/simple/ --prerelease allow
+          uv pip install mojo
 
       - name: Run Mojo tests
         run: |

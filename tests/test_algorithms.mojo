@@ -1,8 +1,8 @@
 from networkx import Graph, DiGraph
-from testing import assert_equal, assert_true
+from std.testing import assert_equal, assert_true
 
 
-fn w(u: Int, v: Int) -> Float64:
+def w(u: Int, v: Int) -> Float64:
     if u == 1 and v == 2:
         return 5.0
     if u == 1 and v == 3:
@@ -12,11 +12,11 @@ fn w(u: Int, v: Int) -> Float64:
     return 1.0
 
 
-fn h(u: Int, target: Int) -> Float64:
+def h(u: Int, target: Int) -> Float64:
     return 0.0
 
 
-fn main() raises:
+def main() raises:
     var g = Graph[Int]()
     g.add_edges_from([(1, 2), (2, 3), (1, 3)])
 

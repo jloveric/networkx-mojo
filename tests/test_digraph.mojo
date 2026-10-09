@@ -1,19 +1,19 @@
 from networkx import DiGraph
-from testing import assert_equal, assert_true, assert_false
-from utils import Variant
+from std.testing import assert_equal, assert_true, assert_false
+from std.utils import Variant
 
 comptime AttrValue = Variant[Int, Float64, Bool, String]
 
-fn _noop_node(x: Int):
+def _noop_node(x: Int):
     _ = x
 
 
-fn _noop_edge(u: Int, v: Int):
+def _noop_edge(u: Int, v: Int):
     _ = u
     _ = v
 
 
-fn main() raises:
+def main() raises:
     var g = DiGraph[Int]()
     assert_equal(g.number_of_nodes(), 0)
     assert_equal(g.number_of_edges(), 0)

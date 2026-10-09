@@ -1,126 +1,128 @@
-from builtin.value import ImplicitlyCopyable
-from collections import Dict, List, Set
-from collections.dict import KeyElement
-from utils import Variant
+from std.traits.copyable import ImplicitlyCopyable
+from std.traits import Deinitable
+from std.collections import Dict, List, Set
+from std.collections.dict import KeyElement
+from std.utils import Variant
+from .._internal.dict_helpers import dict_contains_nested_key, dict_remove_nested_key
 
 comptime AttrValue = Variant[Int, Float64, Bool, String]
 
 
-struct MultiDiGraph[N: KeyElement & ImplicitlyCopyable]:
+struct MultiDiGraph[N: KeyElement & Deinitable & ImplicitlyCopyable]:
     var _succ: Dict[Self.N, Dict[Self.N, Dict[Int, Float64]]]
     var _pred: Dict[Self.N, Dict[Self.N, Dict[Int, Float64]]]
     var _graph_attr: Dict[String, AttrValue]
     var _node_attr: Dict[Self.N, Dict[String, AttrValue]]
     var _edge_attr: Dict[Self.N, Dict[Self.N, Dict[Int, Dict[String, AttrValue]]]]
 
-    fn __init__(out self):
+    def __init__(out self):
         self._succ = Dict[Self.N, Dict[Self.N, Dict[Int, Float64]]]()
         self._pred = Dict[Self.N, Dict[Self.N, Dict[Int, Float64]]]()
         self._graph_attr = Dict[String, AttrValue]()
         self._node_attr = Dict[Self.N, Dict[String, AttrValue]]()
         self._edge_attr = Dict[Self.N, Dict[Self.N, Dict[Int, Dict[String, AttrValue]]]]()
 
-    fn __len__(self) -> Int:
+    def __len__(self) -> Int:
         return self.number_of_nodes()
 
-    fn __contains__(self, node: Self.N) -> Bool:
+    def __contains__(self, node: Self.N) -> Bool:
         return self.has_node(node)
 
-    fn __iter__(self) -> Dict[Self.N, Dict[Self.N, Dict[Int, Float64]]].IteratorType[iterable_mut=False, iterable_origin=origin_of(self._succ)]:
+    def __iter__(self) -> Dict[Self.N, Dict[Self.N, Dict[Int, Float64]]].IteratorType[iterable_mut=False, iterable_origin=origin_of(self._succ)]:
         return self._succ.keys()
 
-    fn number_of_nodes(self) -> Int:
+    def number_of_nodes(self) -> Int:
         return len(self._succ)
 
-    fn order(self) -> Int:
+    def order(self) -> Int:
         return self.number_of_nodes()
 
-    fn number_of_edges(self) -> Int:
+    def number_of_edges(self) -> Int:
         var total = 0
         for entry in self._succ.items():
             for nbr_entry in entry.value.items():
                 total += len(nbr_entry.value)
         return total
 
-    fn size(self) -> Int:
+    def size(self) -> Int:
         return self.number_of_edges()
 
-    fn is_directed(self) -> Bool:
+    def is_directed(self) -> Bool:
         return True
 
-    fn is_multigraph(self) -> Bool:
+    def is_multigraph(self) -> Bool:
         return True
 
-    fn has_node(self, node: Self.N) -> Bool:
+    def has_node(self, node: Self.N) -> Bool:
         return node in self._succ
 
-    fn nodes(ref self) -> List[Self.N]:
+    def nodes(ref self) -> List[Self.N]:
         var result = List[Self.N]()
         for node in self._succ.keys():
             result.append(node)
         return result^
 
-    fn succ_view(ref self) -> ref[self._succ] Dict[Self.N, Dict[Self.N, Dict[Int, Float64]]]:
+    def succ_view(ref self) -> ref[self._succ] Dict[Self.N, Dict[Self.N, Dict[Int, Float64]]]:
         return self._succ
 
-    fn pred_view(ref self) -> ref[self._pred] Dict[Self.N, Dict[Self.N, Dict[Int, Float64]]]:
+    def pred_view(ref self) -> ref[self._pred] Dict[Self.N, Dict[Self.N, Dict[Int, Float64]]]:
         return self._pred
 
-    fn succ(ref self) -> ref[self._succ] Dict[Self.N, Dict[Self.N, Dict[Int, Float64]]]:
+    def succ(ref self) -> ref[self._succ] Dict[Self.N, Dict[Self.N, Dict[Int, Float64]]]:
         return self._succ
 
-    fn pred(ref self) -> ref[self._pred] Dict[Self.N, Dict[Self.N, Dict[Int, Float64]]]:
+    def pred(ref self) -> ref[self._pred] Dict[Self.N, Dict[Self.N, Dict[Int, Float64]]]:
         return self._pred
 
-    fn adj(ref self) -> ref[self._succ] Dict[Self.N, Dict[Self.N, Dict[Int, Float64]]]:
+    def adj(ref self) -> ref[self._succ] Dict[Self.N, Dict[Self.N, Dict[Int, Float64]]]:
         return self._succ
 
-    fn __getitem__(ref self, node: Self.N) raises -> Dict[Self.N, Dict[Int, Float64]]:
+    def __getitem__(ref self, node: Self.N) raises -> Dict[Self.N, Dict[Int, Float64]]:
         return self._succ[node].copy()
 
-    fn successors(ref self, node: Self.N) raises -> List[Self.N]:
+    def successors(ref self, node: Self.N) raises -> List[Self.N]:
         var result = List[Self.N]()
         for nbr in self._succ[node].keys():
             result.append(nbr)
         return result^
 
-    fn for_each_successor[callback: fn(Self.N)](ref self, node: Self.N) raises -> Int:
+    def for_each_successor[callback: def(Self.N) thin -> None](ref self, node: Self.N) raises -> Int:
         var count = 0
         for nbr in self._succ[node].keys():
             callback(nbr)
             count += 1
         return count
 
-    fn neighbors(ref self, node: Self.N) raises -> List[Self.N]:
+    def neighbors(ref self, node: Self.N) raises -> List[Self.N]:
         return self.successors(node)
 
-    fn adj(ref self, node: Self.N) raises -> List[Self.N]:
+    def adj(ref self, node: Self.N) raises -> List[Self.N]:
         return self.successors(node)
 
-    fn predecessors(ref self, node: Self.N) raises -> List[Self.N]:
+    def predecessors(ref self, node: Self.N) raises -> List[Self.N]:
         var result = List[Self.N]()
         for nbr in self._pred[node].keys():
             result.append(nbr)
         return result^
 
-    fn for_each_predecessor[callback: fn(Self.N)](ref self, node: Self.N) raises -> Int:
+    def for_each_predecessor[callback: def(Self.N) thin -> None](ref self, node: Self.N) raises -> Int:
         var count = 0
         for nbr in self._pred[node].keys():
             callback(nbr)
             count += 1
         return count
 
-    fn add_node(mut self, node: Self.N):
+    def add_node(mut self, node: Self.N):
         _ = self._succ.setdefault(node, Dict[Self.N, Dict[Int, Float64]]())
         _ = self._pred.setdefault(node, Dict[Self.N, Dict[Int, Float64]]())
         _ = self._node_attr.setdefault(node, Dict[String, AttrValue]())
         _ = self._edge_attr.setdefault(node, Dict[Self.N, Dict[Int, Dict[String, AttrValue]]]())
 
-    fn add_nodes_from(mut self, nodes: List[Self.N]):
+    def add_nodes_from(mut self, nodes: List[Self.N]):
         for node in nodes:
             self.add_node(node)
 
-    fn _next_key(ref self, u: Self.N, v: Self.N) raises -> Int:
+    def _next_key(ref self, u: Self.N, v: Self.N) raises -> Int:
         try:
             ref nbrs = self._succ[u]
             try:
@@ -131,7 +133,7 @@ struct MultiDiGraph[N: KeyElement & ImplicitlyCopyable]:
         except:
             return 0
 
-    fn add_edge(mut self, u: Self.N, v: Self.N, weight: Float64 = 1.0, key: Int = -1) raises -> Int:
+    def add_edge(mut self, u: Self.N, v: Self.N, weight: Float64 = 1.0, key: Int = -1) raises -> Int:
         self.add_node(u)
         self.add_node(v)
 
@@ -140,12 +142,11 @@ struct MultiDiGraph[N: KeyElement & ImplicitlyCopyable]:
             k = self._next_key(u, v)
 
         ref succ_u = self._succ.setdefault(u, Dict[Self.N, Dict[Int, Float64]]())
-        ref pred_v = self._pred.setdefault(v, Dict[Self.N, Dict[Int, Float64]]())
-        _ = self._succ.setdefault(v, Dict[Self.N, Dict[Int, Float64]]())
-        _ = self._pred.setdefault(u, Dict[Self.N, Dict[Int, Float64]]())
-
         ref map_u = succ_u.setdefault(v, Dict[Int, Float64]())
         map_u[k] = weight
+        _ = self._pred.setdefault(u, Dict[Self.N, Dict[Int, Float64]]())
+        _ = self._succ.setdefault(v, Dict[Self.N, Dict[Int, Float64]]())
+        ref pred_v = self._pred.setdefault(v, Dict[Self.N, Dict[Int, Float64]]())
         ref map_p = pred_v.setdefault(u, Dict[Int, Float64]())
         map_p[k] = weight
 
@@ -159,11 +160,11 @@ struct MultiDiGraph[N: KeyElement & ImplicitlyCopyable]:
 
         return k
 
-    fn add_edges_from(mut self, edges: List[Tuple[Self.N, Self.N]]) raises:
+    def add_edges_from(mut self, edges: List[Tuple[Self.N, Self.N]]) raises:
         for e in edges:
             _ = self.add_edge(e[0], e[1])
 
-    fn bfs_edges(ref self, source: Self.N) raises -> List[Tuple[Self.N, Self.N]]:
+    def bfs_edges(ref self, source: Self.N) raises -> List[Tuple[Self.N, Self.N]]:
         if not self.has_node(source):
             raise Error("node not in graph")
 
@@ -187,7 +188,7 @@ struct MultiDiGraph[N: KeyElement & ImplicitlyCopyable]:
 
         return out^
 
-    fn dfs_edges(ref self, source: Self.N) raises -> List[Tuple[Self.N, Self.N]]:
+    def dfs_edges(ref self, source: Self.N) raises -> List[Tuple[Self.N, Self.N]]:
         if not self.has_node(source):
             raise Error("node not in graph")
 
@@ -209,7 +210,7 @@ struct MultiDiGraph[N: KeyElement & ImplicitlyCopyable]:
 
         return out^
 
-    fn bfs_tree(ref self, source: Self.N, out t: MultiDiGraph[Self.N]) raises:
+    def bfs_tree(ref self, source: Self.N, out t: MultiDiGraph[Self.N]) raises:
         if not self.has_node(source):
             raise Error("node not in graph")
 
@@ -227,7 +228,7 @@ struct MultiDiGraph[N: KeyElement & ImplicitlyCopyable]:
             var u = queue[head]
             head += 1
             for nbr_entry in self._succ[u].items():
-                var v = nbr_entry.key
+                var v: Self.N = nbr_entry.key
                 if v in seen:
                     continue
                 seen.add(v)
@@ -240,7 +241,7 @@ struct MultiDiGraph[N: KeyElement & ImplicitlyCopyable]:
 
         return
 
-    fn dfs_tree(ref self, source: Self.N, out t: MultiDiGraph[Self.N]) raises:
+    def dfs_tree(ref self, source: Self.N, out t: MultiDiGraph[Self.N]) raises:
         if not self.has_node(source):
             raise Error("node not in graph")
 
@@ -256,7 +257,7 @@ struct MultiDiGraph[N: KeyElement & ImplicitlyCopyable]:
         while len(stack) > 0:
             var u = stack.pop()
             for nbr_entry in self._succ[u].items():
-                var v = nbr_entry.key
+                var v: Self.N = nbr_entry.key
                 if v in seen:
                     continue
                 seen.add(v)
@@ -269,7 +270,7 @@ struct MultiDiGraph[N: KeyElement & ImplicitlyCopyable]:
 
         return
 
-    fn bfs_predecessors(ref self, source: Self.N) raises -> List[Tuple[Self.N, Self.N]]:
+    def bfs_predecessors(ref self, source: Self.N) raises -> List[Tuple[Self.N, Self.N]]:
         if not self.has_node(source):
             raise Error("node not in graph")
 
@@ -296,7 +297,7 @@ struct MultiDiGraph[N: KeyElement & ImplicitlyCopyable]:
             out.append((entry.key, entry.value))
         return out^
 
-    fn bfs_successors(ref self, source: Self.N) raises -> List[Tuple[Self.N, List[Self.N]]]:
+    def bfs_successors(ref self, source: Self.N) raises -> List[Tuple[Self.N, List[Self.N]]]:
         if not self.has_node(source):
             raise Error("node not in graph")
 
@@ -324,7 +325,7 @@ struct MultiDiGraph[N: KeyElement & ImplicitlyCopyable]:
             out.append((entry.key, entry.value.copy()))
         return out^
 
-    fn dfs_predecessors(ref self, source: Self.N) raises -> List[Tuple[Self.N, Self.N]]:
+    def dfs_predecessors(ref self, source: Self.N) raises -> List[Tuple[Self.N, Self.N]]:
         if not self.has_node(source):
             raise Error("node not in graph")
 
@@ -349,7 +350,7 @@ struct MultiDiGraph[N: KeyElement & ImplicitlyCopyable]:
             out.append((entry.key, entry.value))
         return out^
 
-    fn dfs_successors(ref self, source: Self.N) raises -> List[Tuple[Self.N, List[Self.N]]]:
+    def dfs_successors(ref self, source: Self.N) raises -> List[Tuple[Self.N, List[Self.N]]]:
         if not self.has_node(source):
             raise Error("node not in graph")
 
@@ -375,7 +376,7 @@ struct MultiDiGraph[N: KeyElement & ImplicitlyCopyable]:
             out.append((entry.key, entry.value.copy()))
         return out^
 
-    fn bfs_layers(ref self, source: Self.N) raises -> List[List[Self.N]]:
+    def bfs_layers(ref self, source: Self.N) raises -> List[List[Self.N]]:
         if not self.has_node(source):
             raise Error("node not in graph")
 
@@ -399,7 +400,7 @@ struct MultiDiGraph[N: KeyElement & ImplicitlyCopyable]:
 
         return layers^
 
-    fn copy(ref self, out g: MultiDiGraph[Self.N]) raises:
+    def copy(ref self, out g: MultiDiGraph[Self.N]) raises:
         g = MultiDiGraph[Self.N]()
 
         for node in self._succ.keys():
@@ -428,7 +429,7 @@ struct MultiDiGraph[N: KeyElement & ImplicitlyCopyable]:
 
         return
 
-    fn subgraph(ref self, nodes: List[Self.N], out sg: MultiDiGraph[Self.N]) raises:
+    def subgraph(ref self, nodes: List[Self.N], out sg: MultiDiGraph[Self.N]) raises:
         sg = MultiDiGraph[Self.N]()
         var node_set = Set[Self.N]()
 
@@ -470,19 +471,19 @@ struct MultiDiGraph[N: KeyElement & ImplicitlyCopyable]:
 
         return
 
-    fn has_edge(self, u: Self.N, v: Self.N) -> Bool:
+    def has_edge(self, u: Self.N, v: Self.N) -> Bool:
         try:
             return v in self._succ[u]
         except:
             return False
 
-    fn has_edge_key(self, u: Self.N, v: Self.N, key: Int) -> Bool:
+    def has_edge_key(self, u: Self.N, v: Self.N, key: Int) -> Bool:
         try:
             return key in self._succ[u][v]
         except:
             return False
 
-    fn edges(self) -> List[Tuple[Self.N, Self.N, Int]]:
+    def edges(self) -> List[Tuple[Self.N, Self.N, Int]]:
         var result = List[Tuple[Self.N, Self.N, Int]]()
         for entry in self._succ.items():
             for nbr_entry in entry.value.items():
@@ -490,7 +491,7 @@ struct MultiDiGraph[N: KeyElement & ImplicitlyCopyable]:
                     result.append((entry.key, nbr_entry.key, k))
         return result^
 
-    fn for_each_edge[callback: fn(Self.N, Self.N, Int)](ref self) -> Int:
+    def for_each_edge[callback: def(Self.N, Self.N, Int) thin -> None](ref self) -> Int:
         var count = 0
         for entry in self._succ.items():
             for nbr_entry in entry.value.items():
@@ -499,22 +500,22 @@ struct MultiDiGraph[N: KeyElement & ImplicitlyCopyable]:
                     count += 1
         return count
 
-    fn out_degree(self, node: Self.N) raises -> Int:
+    def out_degree(self, node: Self.N) raises -> Int:
         var d = 0
         for entry in self._succ[node].items():
             d += len(entry.value)
         return d
 
-    fn in_degree(self, node: Self.N) raises -> Int:
+    def in_degree(self, node: Self.N) raises -> Int:
         var d = 0
         for entry in self._pred[node].items():
             d += len(entry.value)
         return d
 
-    fn degree(self, node: Self.N) raises -> Int:
+    def degree(self, node: Self.N) raises -> Int:
         return self.in_degree(node) + self.out_degree(node)
 
-    fn remove_edge(mut self, u: Self.N, v: Self.N, key: Int) raises:
+    def remove_edge(mut self, u: Self.N, v: Self.N, key: Int) raises:
         if not self.has_edge_key(u, v, key):
             raise Error("edge not in graph")
 
@@ -559,7 +560,7 @@ struct MultiDiGraph[N: KeyElement & ImplicitlyCopyable]:
         except:
             pass
 
-    fn remove_edges_from(mut self, edges: List[Tuple[Self.N, Self.N, Int]]):
+    def remove_edges_from(mut self, edges: List[Tuple[Self.N, Self.N, Int]]):
         for e in edges:
             if self.has_edge_key(e[0], e[1], e[2]):
                 try:
@@ -567,7 +568,7 @@ struct MultiDiGraph[N: KeyElement & ImplicitlyCopyable]:
                 except:
                     pass
 
-    fn set_edge_attr(mut self, u: Self.N, v: Self.N, edge_key: Int, key: String, mut value: AttrValue) raises:
+    def set_edge_attr(mut self, u: Self.N, v: Self.N, edge_key: Int, key: String, mut value: AttrValue) raises:
         if not self.has_edge_key(u, v, edge_key):
             raise Error("edge not in graph")
 
@@ -582,63 +583,55 @@ struct MultiDiGraph[N: KeyElement & ImplicitlyCopyable]:
         ref u_map = u_v.setdefault(edge_key, Dict[String, AttrValue]())
         u_map[key] = value
 
-    fn get_edge_attr(ref self, u: Self.N, v: Self.N, edge_key: Int, key: String) raises -> AttrValue:
+    def get_edge_attr(ref self, u: Self.N, v: Self.N, edge_key: Int, key: String) raises -> AttrValue:
         if not self.has_edge_key(u, v, edge_key):
             raise Error("edge not in graph")
         if key == "weight":
             return AttrValue(self._succ[u][v][edge_key])
         return self._edge_attr[u][v][edge_key][key]
 
-    fn set_graph_attr(mut self, key: String, value: AttrValue):
+    def set_graph_attr(mut self, key: String, value: AttrValue):
         self._graph_attr[key] = value
 
-    fn get_graph_attr(ref self, key: String) raises -> AttrValue:
+    def get_graph_attr(ref self, key: String) raises -> AttrValue:
         return self._graph_attr[key]
 
-    fn set_node_attr(mut self, node: Self.N, key: String, value: AttrValue) raises:
+    def set_node_attr(mut self, node: Self.N, key: String, value: AttrValue) raises:
         if not self.has_node(node):
             raise Error("node not in graph")
         ref attrs = self._node_attr.setdefault(node, Dict[String, AttrValue]())
         attrs[key] = value
 
-    fn get_node_attr(ref self, node: Self.N, key: String) raises -> AttrValue:
+    def get_node_attr(ref self, node: Self.N, key: String) raises -> AttrValue:
         if not self.has_node(node):
             raise Error("node not in graph")
         return self._node_attr[node][key]
 
-    fn clear(mut self):
+    def clear(mut self):
         self._succ = Dict[Self.N, Dict[Self.N, Dict[Int, Float64]]]()
         self._pred = Dict[Self.N, Dict[Self.N, Dict[Int, Float64]]]()
         self._graph_attr = Dict[String, AttrValue]()
         self._node_attr = Dict[Self.N, Dict[String, AttrValue]]()
         self._edge_attr = Dict[Self.N, Dict[Self.N, Dict[Int, Dict[String, AttrValue]]]]()
 
-    fn remove_node(mut self, node: Self.N) raises:
+    def remove_node(mut self, node: Self.N) raises:
         var out_neighbors = self._succ.pop(node)
         for entry in out_neighbors.items():
-            var v = entry.key
-            try:
-                _ = self._pred[v].pop(node)
-            except:
-                pass
+            var v: Self.N = entry.key
+            if dict_contains_nested_key(self._pred, v, node):
+                dict_remove_nested_key(self._pred, v, node)
 
-            try:
-                _ = self._edge_attr[node].pop(v)
-            except:
-                pass
+            if dict_contains_nested_key(self._edge_attr, node, v):
+                dict_remove_nested_key(self._edge_attr, node, v)
 
         var in_neighbors = self._pred.pop(node)
         for entry in in_neighbors.items():
-            var u = entry.key
-            try:
-                _ = self._succ[u].pop(node)
-            except:
-                pass
+            var u: Self.N = entry.key
+            if dict_contains_nested_key(self._succ, u, node):
+                dict_remove_nested_key(self._succ, u, node)
 
-            try:
-                _ = self._edge_attr[u].pop(node)
-            except:
-                pass
+            if dict_contains_nested_key(self._edge_attr, u, node):
+                dict_remove_nested_key(self._edge_attr, u, node)
 
         try:
             _ = self._node_attr.pop(node)
@@ -650,7 +643,7 @@ struct MultiDiGraph[N: KeyElement & ImplicitlyCopyable]:
         except:
             pass
 
-    fn remove_nodes_from(mut self, nodes: List[Self.N]):
+    def remove_nodes_from(mut self, nodes: List[Self.N]):
         for n in nodes:
             if self.has_node(n):
                 try:

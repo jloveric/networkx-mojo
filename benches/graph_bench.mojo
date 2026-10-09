@@ -1,9 +1,9 @@
 from networkx import Graph
-from sys import argv
+from std.sys import argv
 from time import perf_counter_ns
 
 
-fn main() raises:
+def main() raises:
     var args = argv()
 
     var n = 200

@@ -1,36 +1,37 @@
-from builtin.value import ImplicitlyCopyable
-from collections import List
-from collections.dict import KeyElement
+from std.traits.copyable import ImplicitlyCopyable
+from std.traits import Deinitable
+from std.collections import List
+from std.collections.dict import KeyElement
 
 
-struct _HeapItem[N: KeyElement & ImplicitlyCopyable](ImplicitlyCopyable):
+struct _HeapItem[N: KeyElement & Deinitable & ImplicitlyCopyable](ImplicitlyCopyable):
     var prio: Float64
     var count: Int
     var node: Self.N
 
-    fn __init__(out self, prio: Float64, count: Int, node: Self.N):
+    def __init__(out self, prio: Float64, count: Int, node: Self.N):
         self.prio = prio
         self.count = count
         self.node = node
 
 
-struct _MinHeap[N: KeyElement & ImplicitlyCopyable]:
+struct _MinHeap[N: KeyElement & Deinitable & ImplicitlyCopyable]:
     var _data: List[_HeapItem[Self.N]]
 
-    fn __init__(out self):
+    def __init__(out self):
         self._data = List[_HeapItem[Self.N]]()
 
-    fn is_empty(self) -> Bool:
+    def is_empty(self) -> Bool:
         return len(self._data) == 0
 
-    fn _less(self, a: _HeapItem[Self.N], b: _HeapItem[Self.N]) -> Bool:
+    def _less(self, a: _HeapItem[Self.N], b: _HeapItem[Self.N]) -> Bool:
         if a.prio < b.prio:
             return True
         if a.prio > b.prio:
             return False
         return a.count < b.count
 
-    fn push(mut self, item: _HeapItem[Self.N]):
+    def push(mut self, item: _HeapItem[Self.N]):
         self._data.append(item)
         var i = len(self._data) - 1
         while i > 0:
@@ -42,7 +43,7 @@ struct _MinHeap[N: KeyElement & ImplicitlyCopyable]:
             self._data[i] = tmp
             i = parent
 
-    fn pop_min(mut self) raises -> _HeapItem[Self.N]:
+    def pop_min(mut self) raises -> _HeapItem[Self.N]:
         if len(self._data) == 0:
             raise Error("empty heap")
         var result = self._data[0]

@@ -26,15 +26,15 @@ Run:
 """
 
 from networkx import Graph
-from math import sqrt
-from python import Python, PythonObject
+from std.math import sqrt
+from std.python import Python, PythonObject
 
 
 comptime ROWS = 15
 comptime COLS = 20
 
 
-fn _segment_length(u: Int, v: Int) -> Float64:
+def _segment_length(u: Int, v: Int) -> Float64:
     var ru = u // COLS
     var cu = u % COLS
     var rv = v // COLS
@@ -51,7 +51,7 @@ fn _segment_length(u: Int, v: Int) -> Float64:
     return 1.0
 
 
-fn _euclidean_heuristic(u: Int, target: Int) -> Float64:
+def _euclidean_heuristic(u: Int, target: Int) -> Float64:
     var ru = u // COLS
     var cu = u % COLS
     var rt = target // COLS
@@ -61,13 +61,22 @@ fn _euclidean_heuristic(u: Int, target: Int) -> Float64:
     return sqrt(dr * dr + dc * dc)
 
 
-fn _unit_weight(u: Int, v: Int) -> Float64:
+def _unit_weight(u: Int, v: Int) -> Float64:
     _ = u
     _ = v
     return 1.0
 
 
-fn _chebyshev_heuristic(u: Int, target: Int) -> Float64:
+def _path_weight(ref graph: Graph[Int], ref path: List[Int]) raises -> Float64:
+    var total: Float64 = 0.0
+    var i = 0
+    while i < len(path) - 1:
+        total += graph._adj[path[i]][path[i + 1]]
+        i += 1
+    return total
+
+
+def _chebyshev_heuristic(u: Int, target: Int) -> Float64:
     var ru = u // COLS
     var cu = u % COLS
     var rt = target // COLS
@@ -83,7 +92,7 @@ fn _chebyshev_heuristic(u: Int, target: Int) -> Float64:
     return Float64(dc)
 
 
-fn main() raises:
+def main() raises:
     var g = Graph[Int]()
 
     # Add all nodes
@@ -165,14 +174,6 @@ fn main() raises:
     var path_bidir_dij = g.bidirectional_dijkstra_path(source, target)
     var path_astar = g.astar_path_weighted[_segment_length, _euclidean_heuristic](source, target)
     var path_astar_steps = g.astar_path_weighted[_unit_weight, _chebyshev_heuristic](source, target)
-
-    fn _path_weight(ref graph: Graph[Int], ref path: List[Int]) raises -> Float64:
-        var total: Float64 = 0.0
-        var i = 0
-        while i < len(path) - 1:
-            total += graph._adj[path[i]][path[i + 1]]
-            i += 1
-        return total
 
     var cost_bfs = _path_weight(g, path_bfs)
     var cost_bidir = _path_weight(g, path_bidir_bfs)

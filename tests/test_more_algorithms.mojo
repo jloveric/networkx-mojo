@@ -1,9 +1,9 @@
 from networkx import Graph, DiGraph
-from collections import Dict
-from testing import assert_equal, assert_true, assert_false
+from std.collections import Dict
+from std.testing import assert_equal, assert_true, assert_false
 
 
-fn main() raises:
+def main() raises:
     var g = Graph[Int]()
     g.add_edges_from([(1, 2), (2, 3), (4, 5)])
 
